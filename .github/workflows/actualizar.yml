@@ -1,0 +1,35 @@
+# Robot de GitHub: cada hora pide los datos a SAN y actualiza docs/datos.json
+# Solo funciona si SAN se puede abrir desde internet.
+# La llave se guarda en: Settings → Secrets and variables → Actions → FLASH_API_KEY
+name: Actualizar datos de Flash
+
+on:
+  schedule:
+    - cron: '5 * * * *'      # cada hora, al minuto 5
+  workflow_dispatch:           # también se puede lanzar a mano con el botón "Run workflow"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: actualizar-datos
+  cancel-in-progress: false
+
+jobs:
+  actualizar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Pedir datos a SAN
+        env:
+          FLASH_API_KEY: ${{ secrets.FLASH_API_KEY }}
+        run: node actualizar.js
+      - name: Guardar datos si cambiaron
+        run: |
+          git config user.name "robot-flash"
+          git config user.email "robot-flash@users.noreply.github.com"
+          git add docs/datos.json
+          git diff --cached --quiet && echo "Sin cambios" || (git commit -m "Actualizar datos de Flash" && git push)
