@@ -4,100 +4,171 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Flash de Altas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;650;700;800&display=swap" rel="stylesheet">
 <script>
 (function(){ var t='claro'; try{ t=localStorage.getItem('flash_tema')||'claro'; }catch(e){}
   if(t==='claro') document.documentElement.setAttribute('data-theme','light');
   else if(t==='oscuro') document.documentElement.setAttribute('data-theme','dark'); })();
 </script>
 <style>
-:root{
-  color-scheme: light;
-  --page:#f3f5f9; --surface:#ffffff; --ink:#0f1b2d; --ink-2:#4a5568; --muted:#8a94a6;
-  --grid:#e6e9ef; --axis:#c9ced8; --ring:rgba(15,27,45,.08); --hover:rgba(30,79,156,.06);
-  --shadow:0 1px 2px rgba(15,27,45,.04),0 6px 20px rgba(15,27,45,.06);
-  --navy-1:#0a1f44; --navy-2:#123a7a; --navy-3:#1e56b0; --red:#e0202e; --red-soft:#fde8ea;
-  --s1:#2a78d6; --s2:#e34948; --accent:#1e56b0;
-  --s1-hi:#6aa9f0; --s1-lo:#1f63b8; --s2-hi:#f28a89; --s2-lo:#c9302f; --sv-hi:#5b8fe0; --gt-hi:#3fbdb1; --shine:rgba(255,255,255,.6);
-  --sv:#1e56b0; --sv-bg:#e6effc; --gt:#0e8a80; --gt-bg:#e1f5f2;
-  --seq-0:#f2f7fd; --seq-1:#cde2fb; --seq-2:#9ec5f4; --seq-3:#6da7ec; --seq-4:#3987e5; --seq-5:#256abf;
-  --warn-bg:#fff6e0; --warn-ink:#6b4a00;
-  --i1:#e0202e; --i1-bg:#fde8ea; --i2:#1e56b0; --i2-bg:#e6effc; --i3:#0e8a80; --i3-bg:#e1f5f2; --i4:#b7791f; --i4-bg:#fdf3e1; --i5:#6b46c1; --i5-bg:#efe9fb;
-}
-@media (prefers-color-scheme: dark){
-  :root:not([data-theme="light"]){
-    color-scheme: dark;
-    --page:#0b1220; --surface:#131c2e; --ink:#f1f5fb; --ink-2:#b6c0d1; --muted:#7f8aa0;
-    --grid:#223049; --axis:#2e3d59; --ring:rgba(255,255,255,.08); --hover:rgba(120,170,255,.08);
-    --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.25);
-    --s1:#3987e5; --s2:#e66767; --accent:#5b9bf0;
-    --s1-hi:#7db8ff; --s1-lo:#2466c0; --s2-hi:#ff9b9b; --s2-lo:#c94a4a; --sv-hi:#a9cbff; --gt-hi:#8ff0e6; --shine:rgba(255,255,255,.35);
-    --s1-hi:#7db8ff; --s1-lo:#2466c0; --s2-hi:#ff9b9b; --s2-lo:#c94a4a; --sv-hi:#a9cbff; --gt-hi:#8ff0e6; --shine:rgba(255,255,255,.35);
-    --sv:#7fb0f5; --sv-bg:#1a2b4a; --gt:#4fd1c5; --gt-bg:#123633;
-    --seq-0:#16213a; --seq-1:#104281; --seq-2:#184f95; --seq-3:#1c5cab; --seq-4:#256abf; --seq-5:#2a78d6;
-    --warn-bg:#2e2410; --warn-ink:#f2cf7a;
-    --i1:#ff6b74; --i1-bg:#3a1a20; --i2:#7fb0f5; --i2-bg:#1a2b4a; --i3:#4fd1c5; --i3-bg:#123633; --i4:#f0b95a; --i4-bg:#3a2c12; --i5:#b69cf5; --i5-bg:#2a2146;
-  }
-}
-:root[data-theme="dark"]{
+/* =====================================================================
+   Estilo visual igual al dashboard de Marketing · Flujo de ventas.
+   Solo apariencia: no cambia datos, cálculos ni secciones.
+   Siempre oscuro (el tema guardado en el navegador ya no cambia colores).
+   ===================================================================== */
+:root,:root[data-theme="light"],:root[data-theme="dark"]{
   color-scheme: dark;
-  --page:#0b1220; --surface:#131c2e; --ink:#f1f5fb; --ink-2:#b6c0d1; --muted:#7f8aa0;
-  --grid:#223049; --axis:#2e3d59; --ring:rgba(255,255,255,.08); --hover:rgba(120,170,255,.08);
-  --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.25);
-  --s1:#3987e5; --s2:#e66767; --accent:#5b9bf0;
+  --page:#0a0e1a; --surface:#151c2e; --surface-2:#0f1623; --surface-3:#1a2d47; --hover:#1c2438;
+  --line:#263b59; --line-2:#385171; --ring:#263b59;
+  --ink:#f5f8fc; --ink-2:#a9b9cf; --muted:#7890ad; --soft:#607492;
+  --grid:rgba(120,144,173,.16); --axis:rgba(120,144,173,.32);
+  --red:#ef3e4d; --red-dark:#c12d3a; --red-soft:rgba(239,62,77,.12); --accent:#ef3e4d; --good:#10b981;
+  --font:'Montserrat','Segoe UI',system-ui,-apple-system,sans-serif;
+  --mono:'Cascadia Code','Fira Mono',Consolas,monospace;
+  /* series de las gráficas: Nueva (azul) y Adición (coral) siguen distintas */
+  --s1:#3987e5; --s2:#e66767;
   --s1-hi:#7db8ff; --s1-lo:#2466c0; --s2-hi:#ff9b9b; --s2-lo:#c94a4a; --sv-hi:#a9cbff; --gt-hi:#8ff0e6; --shine:rgba(255,255,255,.35);
   --sv:#7fb0f5; --sv-bg:#1a2b4a; --gt:#4fd1c5; --gt-bg:#123633;
   --seq-0:#16213a; --seq-1:#104281; --seq-2:#184f95; --seq-3:#1c5cab; --seq-4:#256abf; --seq-5:#2a78d6;
-  --warn-bg:#2e2410; --warn-ink:#f2cf7a;
+  --warn-bg:rgba(242,201,76,.1); --warn-ink:#f2cf7a;
   --i1:#ff6b74; --i1-bg:#3a1a20; --i2:#7fb0f5; --i2-bg:#1a2b4a; --i3:#4fd1c5; --i3-bg:#123633; --i4:#f0b95a; --i4-bg:#3a2c12; --i5:#b69cf5; --i5-bg:#2a2146;
 }
 *{box-sizing:border-box}
-body{margin:0;background:var(--page);color:var(--ink);font:14px/1.45 "Segoe UI",system-ui,-apple-system,sans-serif}
-/* ---------- encabezado ---------- */
-.hero{background:linear-gradient(120deg,var(--navy-1) 0%,var(--navy-2) 55%,var(--navy-3) 100%);color:#fff;position:relative;overflow:hidden}
-.hero::after{content:"";position:absolute;right:-120px;top:-160px;width:420px;height:420px;border-radius:50%;background:radial-gradient(circle,rgba(224,32,46,.35),transparent 65%);pointer-events:none}
-.hero::before{content:"";position:absolute;left:0;right:0;bottom:0;height:4px;background:linear-gradient(90deg,var(--red),#ff6b4a 40%,transparent)}
-.hero-in{max-width:1320px;margin:0 auto;padding:22px 20px 70px;display:flex;flex-wrap:wrap;gap:16px;align-items:center;justify-content:space-between;position:relative;z-index:1}
-.brand{display:flex;align-items:center;gap:16px;min-width:0}
-.logo{display:flex;align-items:center;justify-content:center;height:64px;width:64px;flex:0 0 64px}
-.logo img{height:64px;width:64px;display:block;filter:drop-shadow(0 6px 14px rgba(0,0,0,.35));animation:logoEntra .7s cubic-bezier(.2,.9,.3,1.3) both}
-.logo span{font-weight:800;color:#fff;font-size:18px;letter-spacing:.04em;background:radial-gradient(circle at 35% 30%,#ff5a5f,#c8101c);width:60px;height:60px;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 14px rgba(0,0,0,.35),inset 0 0 0 4px #c9ccd3}
-.hero h1{font-size:26px;margin:0;font-weight:700;letter-spacing:-.01em}
-.hero .sub{color:rgba(255,255,255,.78);font-size:13px;margin-top:2px}
-.hero-right{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-.pill{display:inline-flex;align-items:center;gap:7px;font-size:12px;color:#fff;border:1px solid rgba(255,255,255,.25);border-radius:999px;padding:5px 12px;background:rgba(255,255,255,.1);backdrop-filter:blur(4px)}
-.pill i{width:8px;height:8px;border-radius:50%;background:#4ade80;display:inline-block;box-shadow:0 0 0 3px rgba(74,222,128,.25)}
-.flag{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;border-radius:999px;padding:5px 12px;background:rgba(255,255,255,.95);color:var(--navy-1)}
-.flag b{width:8px;height:8px;border-radius:50%;display:inline-block}
-.wrap{max-width:1320px;margin:-48px auto 0;padding:0 20px 48px;position:relative;z-index:2}
-/* ---------- filtros ---------- */
-.filters{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;background:var(--surface);border:1px solid var(--ring);border-radius:16px;padding:14px 16px;margin-bottom:18px;box-shadow:var(--shadow);position:sticky;top:8px;z-index:5}
-.f{display:flex;flex-direction:column;gap:4px;min-width:130px}
-.f label{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
-select,input[type=search]{font:inherit;color:var(--ink);background:var(--page);border:1px solid var(--ring);border-radius:10px;padding:7px 10px;min-height:36px;transition:border-color .15s,box-shadow .15s}
-select:focus,input[type=search]:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--hover)}
-.seg{display:inline-flex;background:var(--page);border:1px solid var(--ring);border-radius:10px;padding:3px;gap:2px}
-.seg button{font:inherit;border:0;background:transparent;color:var(--ink-2);padding:5px 12px;cursor:pointer;min-height:30px;border-radius:8px;transition:background .15s}
-.seg button[aria-pressed=true]{background:linear-gradient(120deg,var(--navy-2),var(--navy-3));color:#fff;font-weight:600;box-shadow:0 2px 6px rgba(18,58,122,.3)}
-.btn{font:inherit;border:1px solid var(--ring);background:var(--surface);color:var(--ink-2);border-radius:10px;padding:7px 14px;cursor:pointer;min-height:36px;transition:background .15s}
-.btn:hover{background:var(--hover);color:var(--ink)}
+body{margin:0;min-height:100vh;color:var(--ink);font:14px/1.45 var(--font);
+  background:
+    radial-gradient(ellipse 1200px 600px at 90% -10%, rgba(239,62,77,.08), transparent 60%),
+    radial-gradient(ellipse 1000px 500px at 0% 100%, rgba(59,130,246,.04), transparent 60%),
+    var(--page)}
+.wrap{max-width:1500px;margin:0 auto;padding:28px 30px 48px;position:relative}
+/* ---------- encabezado (como Marketing) ---------- */
+.cab{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;justify-content:space-between;margin:0 0 18px}
+.cab > div{min-width:0}
+.cab > div::before{content:'ACTIVACIONES · FLASH DE ALTAS';display:block;margin-bottom:3px;color:var(--red);font-size:12px;font-weight:800;letter-spacing:2px;text-transform:uppercase}
+.cab h1{margin:0;color:#fff;font-size:24px;line-height:1.12;font-weight:800;letter-spacing:-.5px}
+.cab .sub{margin:6px 0 0;max-width:720px;color:var(--ink-2);font-size:12px;line-height:1.6}
+.pill{display:inline-flex;align-items:center;gap:8px;min-height:36px;padding:7px 11px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink-2);font:600 11.5px var(--mono)}
+.pill i{width:7px;height:7px;border-radius:50%;background:var(--good);display:inline-block;box-shadow:0 0 0 3px rgba(16,185,129,.22);flex:none}
+/* ---------- barra de filtros (copiada de Marketing) ---------- */
+.fx-bar{
+  --surface:#151c2e; --surface-2:#0f1623; --surface-3:#1a2d47;
+  --line:rgba(128,164,207,.2); --line-strong:rgba(128,164,207,.38);
+  --text:#f5f7fb; --muted:#8da1bf; --soft:#607492;
+  --red:#ff1744; --red-2:#ff5b78; --yellow:#f2c94c;
+  position:relative;z-index:5;display:flex;flex-wrap:wrap;align-items:center;gap:10px;
+  padding:15px;margin-bottom:18px;background:var(--surface-2);
+  border:1px solid var(--line);border-radius:9px;color:var(--text);line-height:1.45}
+.fx-bar button,.fx-bar input{font:inherit}
+.fx-bar button{cursor:pointer}
+.fx-bar .input{width:100%;min-height:38px;padding:8px 11px;border:1px solid var(--line-strong);border-radius:7px;background:var(--surface-3);color:var(--text);outline:0}
+.fx-bar .input:focus{border-color:var(--red-2)}
+.fx-bar .ghost-btn{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface-2);color:var(--text);padding:8px 11px;font-size:11px}
+.fx-bar .ghost-btn:hover{border-color:var(--red-2)}
+.fx-bar .filter-btn{display:inline-flex;align-items:center;gap:7px;min-height:37px;padding:8px 12px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface-3);color:var(--text);font-size:11px;transition:.18s ease}
+.fx-bar .filter-btn:hover,.fx-bar .xf-toggle[aria-expanded="true"]{border-color:var(--red-2)}
+.fx-bar .filter-btn svg{width:15px;height:15px}
+.fx-bar .filter-btn.reset{width:38px;height:38px;min-width:38px;margin-left:auto;padding:8px;border-radius:50%;justify-content:center;font-size:0}
+.fx-bar [data-icon]{display:inline-flex}
+.op-group{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:5px 8px 5px 12px;border:1px solid var(--line-strong);border-radius:10px;background:var(--surface-2)}
+.op-label{color:#fff;font-size:12px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;margin-right:4px;white-space:nowrap}
+.fx-bar .op-btn,.fx-bar .seg button{display:inline-flex;align-items:center;gap:7px;min-height:32px;padding:6px 13px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface-3);color:var(--text);font-size:13px;font-weight:600;cursor:pointer;transition:.18s ease;white-space:nowrap}
+.op-btn:hover,.fx-bar .seg button:hover{border-color:var(--red-2)}
+.op-btn.active,.fx-bar .seg button[aria-pressed=true]{background:var(--red);border-color:var(--red);color:#fff;box-shadow:0 6px 16px rgba(255,23,68,.25)}
+.op-flag{display:inline-flex;width:20px;height:14px;border-radius:2px;overflow:hidden;box-shadow:0 0 0 1px rgba(255,255,255,.25)}
+.op-flag svg{width:100%;height:100%;display:block}
+.fx-bar .seg{display:inline-flex;gap:8px}
+/* tipo de cambio + interruptor $ / Q (igual que Marketing) */
+.fx-control{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:5px 12px;border:1px solid var(--line-strong);border-radius:10px;background:var(--surface-2);color:var(--muted);font-size:11px}
+.fx-rate{font-family:var(--mono);color:#c9d6ea;white-space:nowrap}
+.fx-rate.is-fallback{color:var(--yellow)}
+.fx-sym{font-weight:800;color:var(--muted);transition:color .18s}
+.fx-sym.on{color:#fff}
+.switch{position:relative;width:40px;height:22px;display:inline-block}
+.switch input{opacity:0;width:0;height:0}
+.switch-track{position:absolute;inset:0;border:1px solid #54709a;border-radius:99px;background:#172944;transition:.2s;cursor:pointer}
+.switch-track:after{content:'';position:absolute;width:14px;height:14px;left:3px;top:3px;border-radius:50%;background:#f5f7fb;transition:.2s}
+.switch input:checked+.switch-track{background:#ff1744;border-color:#ff1744}
+.switch input:checked+.switch-track:after{transform:translateX(18px)}
+.switch input:focus-visible+.switch-track{box-shadow:0 0 0 3px rgba(255,23,68,.25)}
+/* Período (igual que Marketing) */
+.period-control{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:5px 8px 5px 12px;border:1px solid var(--line-strong);border-radius:10px;background:var(--surface-2)}
+.period-icon{display:inline-flex;color:var(--red-2)}
+.period-icon svg{width:18px;height:18px}
+.fx-bar .period-icon{color:#fff}
+.period-label{color:#fff;font-size:12px;font-weight:700;margin-right:4px}
+.period-input{height:34px;padding:0 10px;border:1px solid var(--line-strong);border-radius:8px;background:#0f1623;color:var(--text);font:600 12px var(--font);color-scheme:dark;outline:0;transition:border-color .2s,box-shadow .2s}
+.period-input:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(255,23,68,.14)}
+.period-input::-webkit-calendar-picker-indicator{cursor:pointer;opacity:.75}
+.period-sep{color:var(--soft)}
+.period-reset{display:inline-grid;place-items:center;width:34px;height:34px;padding:0;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface-3);color:var(--text);cursor:pointer;transition:.18s ease}
+.period-reset:hover{border-color:var(--red-2)}
+.period-reset svg{width:15px;height:15px}
+/* aviso breve cuando DESDE quedó después de HASTA y se intercambiaron */
+.period-control.cambiado .period-input{border-color:var(--yellow);box-shadow:0 0 0 3px rgba(242,201,76,.18)}
+/* sin tipo de cambio: el interruptor queda apagado y atenuado */
+.switch input:disabled+.switch-track{opacity:.4;cursor:not-allowed}
+.fx-control.is-off .fx-sym{opacity:.45}
+.xf{position:static}
+.xf-count{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 5px;border-radius:99px;background:var(--red);color:#fff;font:700 10px var(--mono)}
+.xf-count[hidden]{display:none}
+.xf-chevron{width:14px;height:14px;transition:transform .18s}
+.xf-toggle[aria-expanded="true"] .xf-chevron{transform:rotate(180deg)}
+.xf-panel{position:absolute;top:calc(100% + 6px);right:15px;z-index:30;width:min(880px,calc(100% - 30px));padding:12px;border:1px solid var(--line-strong);border-radius:12px;background:var(--surface);box-shadow:0 18px 40px rgba(0,0,0,.45);animation:aparece .15s ease both}
+.xf-panel[hidden]{display:none}
+.xf-columns{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;max-height:min(60vh,520px);overflow:auto}
+.xf-col{display:flex;flex-direction:column;gap:7px;padding:10px;border:1px solid var(--line);border-radius:9px;background:var(--surface-2);min-width:0}
+.xf-col h5{display:flex;justify-content:space-between;margin:0;color:#fff;font-size:11px;letter-spacing:.4px}
+.xf-col h5 small{color:var(--muted);font:600 10px var(--mono)}
+.xf-search{min-height:32px;padding:6px 9px;font-size:11px}
+.xf-list{display:flex;flex-direction:column;gap:2px;max-height:170px;overflow:auto;scrollbar-color:var(--red) transparent}
+.xf-option{display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:6px;color:var(--text);font-size:11px;cursor:pointer}
+.xf-option:hover{background:var(--surface-3)}
+.xf-option.all{color:var(--muted);border-bottom:1px solid var(--line);border-radius:6px 6px 0 0;margin-bottom:3px}
+.xf-option input{accent-color:var(--red);width:14px;height:14px;margin:0;flex:none}
+.xf-option .cant{margin-left:auto;color:var(--muted);font:600 10px var(--mono)}
+.xf-empty{padding:6px;color:var(--soft);font-size:10px}
+.xf-footer{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}
+.fx-bar .xf-apply{background:var(--red);border-color:var(--red);color:#fff}
+.xf-chips{display:flex;flex-wrap:wrap;gap:6px;flex-basis:100%}
+.xf-chips:empty{display:none}
+.xf-chip{display:inline-flex;align-items:center;gap:6px;padding:5px 6px 5px 10px;border:1px solid rgba(255,23,68,.45);border-radius:99px;background:rgba(255,23,68,.1);color:var(--text);font-size:10px}
+.xf-chip b{font-weight:700;color:#fff}
+.xf-chip button{display:inline-grid;place-items:center;width:16px;height:16px;padding:0;border:0;border-radius:50%;background:rgba(255,255,255,.12);color:#fff;font-size:11px;line-height:1;cursor:pointer}
+.xf-chip button:hover{background:var(--red)}
+.fx-bar svg,.fx-bar .filter-btn.reset{color:#fff}
+@media (max-width:760px){
+  .wrap{padding:16px 16px 40px}
+  .op-group,.fx-control{width:100%;flex-wrap:wrap}.op-label{width:100%}
+  .period-control{width:100%;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:8px;padding:8px 10px}
+  .period-icon{grid-column:1;grid-row:1;justify-self:start}.period-label{grid-column:1/3;grid-row:1;padding-left:28px}.period-reset{grid-column:3;grid-row:1;justify-self:end}
+  .period-from{grid-column:1;grid-row:2;min-width:0;width:100%;padding:0 8px}.period-sep{grid-column:2;grid-row:2}.period-to{grid-column:3;grid-row:2;min-width:0;width:100%;padding:0 8px}
+  .xf,.xf-toggle{width:100%}.fx-bar .filter-btn.reset{margin-left:0}.op-btn,.fx-bar .seg button{flex:1;justify-content:center}.fx-bar .seg{flex:1}
+  .xf-panel{left:15px;right:15px;width:auto}
+}
+/* buscador del detalle y botones de página */
+input[type=search]{font:inherit;font-size:12px;color:var(--ink);background:var(--surface-3);border:1px solid rgba(128,164,207,.38);border-radius:7px;padding:7px 11px;min-height:36px;outline:0;transition:border-color .15s}
+input[type=search]:focus{border-color:#ff5b78}
+.btn{font:inherit;font-size:11.5px;font-weight:600;border:1px solid rgba(128,164,207,.38);background:var(--surface-2);color:var(--ink);border-radius:8px;padding:7px 13px;cursor:pointer;min-height:34px;transition:border-color .15s}
+.btn:hover{border-color:#ff5b78}
 .btn:disabled{opacity:.45;cursor:default}
 /* ---------- tarjetas ---------- */
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-bottom:18px}
-.card{background:var(--surface);border:1px solid var(--ring);border-radius:16px;padding:18px;min-width:0;box-shadow:var(--shadow);animation:sube .45s ease both}
-.kpi{position:relative;overflow:hidden;display:flex;gap:14px;align-items:flex-start}
-.kpi::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--c)}
-.kpi .ic{flex:0 0 42px;height:42px;border-radius:12px;background:var(--cb);color:var(--c);display:flex;align-items:center;justify-content:center}
-.kpi .ic svg{width:22px;height:22px;display:block;overflow:visible}
-.kpi .l{font-size:12px;color:var(--ink-2);font-weight:600}
-.kpi > div:last-child{min-width:0;flex:1}
-.kpi .v{font-size:30px;font-weight:750;margin-top:2px;letter-spacing:-.02em;line-height:1.15;white-space:nowrap}
-.kpi .d{font-size:12px;color:var(--muted);margin-top:4px}
-.k1{--c:var(--i1);--cb:var(--i1-bg)} .k2{--c:var(--i2);--cb:var(--i2-bg)} .k3{--c:var(--i3);--cb:var(--i3-bg)} .k4{--c:var(--i4);--cb:var(--i4-bg)} .k5{--c:var(--i5);--cb:var(--i5-bg)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px 20px;min-width:0;box-shadow:none;animation:sube .45s ease both}
+.card:hover{border-color:var(--line-2)}
+/* indicadores: etiqueta arriba, ícono blanco a la derecha (igual que Marketing) */
+.kpi{position:relative;display:flex;flex-direction:column;min-height:128px}
+.kpi::before{display:none;content:""}
+.kpi .ic{position:absolute;top:18px;right:20px;width:30px;height:30px;border-radius:9px;background:var(--red-soft);color:#fff;display:grid;place-items:center}
+.kpi .ic svg{width:15px;height:15px;display:block;overflow:visible}
+.kpi > div:last-child{min-width:0;flex:1;display:flex;flex-direction:column}
+.kpi .l{font-size:10px;font-weight:650;letter-spacing:.045em;text-transform:uppercase;color:var(--muted);padding-right:40px;min-height:30px}
+.kpi .v{font-size:29px;font-weight:800;margin-top:4px;letter-spacing:-.035em;line-height:1.15;white-space:nowrap;color:var(--ink)}
+.kpi .d{font-size:12px;color:var(--ink-2);margin-top:auto;padding-top:8px}
 .grid2{display:grid;grid-template-columns:1.1fr .9fr;gap:14px;margin-bottom:14px}
 @media (max-width:900px){.grid2{grid-template-columns:1fr}}
-.card h2{font-size:16px;margin:0 0 2px;font-weight:700;display:flex;align-items:center;gap:8px}
-.card h2::before{content:"";width:4px;height:16px;border-radius:2px;background:linear-gradient(var(--red),#ff6b4a)}
-.card .cs{font-size:12px;color:var(--muted);margin-bottom:12px}
+.card h2{font-size:15px;margin:0 0 3px;font-weight:800;color:var(--ink);display:flex;align-items:center;gap:8px}
+.card .cs{font-size:12px;color:var(--ink-2);margin-bottom:12px}
 .legend{display:flex;gap:14px;font-size:12px;color:var(--ink-2);margin-bottom:8px}
 .legend span{display:inline-flex;align-items:center;gap:6px}
 .legend b{width:10px;height:10px;border-radius:3px;display:inline-block}
@@ -105,18 +176,18 @@ select:focus,input[type=search]:focus{outline:none;border-color:var(--accent);bo
 .podio{margin-bottom:14px}
 .podio-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
 @media (max-width:700px){.podio-grid{grid-template-columns:1fr}}
-.puesto{display:flex;align-items:center;gap:12px;padding:14px;border-radius:14px;background:var(--page);border:1px solid var(--ring)}
+.puesto{display:flex;align-items:center;gap:12px;padding:14px;border-radius:10px;background:var(--surface-2);border:1px solid var(--line)}
 .puesto.p1{background:linear-gradient(120deg,rgba(234,179,8,.14),transparent 70%)}
 .puesto.p2{background:linear-gradient(120deg,rgba(148,163,184,.18),transparent 70%)}
 .puesto.p3{background:linear-gradient(120deg,rgba(180,83,9,.13),transparent 70%)}
 .medalla{flex:0 0 40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:16px;box-shadow:inset 0 -3px 0 rgba(0,0,0,.15)}
 .p1 .medalla{background:linear-gradient(135deg,#facc15,#ca8a04)} .p2 .medalla{background:linear-gradient(135deg,#cbd5e1,#64748b)} .p3 .medalla{background:linear-gradient(135deg,#f59e0b,#9a3412)}
-.puesto .nom{font-weight:700;font-size:15px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
-.puesto .num{font-size:22px;font-weight:750;letter-spacing:-.01em}
+.puesto .nom{font-weight:700;font-size:14px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.puesto .num{font-size:22px;font-weight:800;letter-spacing:-.02em}
 .puesto .det{font-size:12px;color:var(--muted)}
 .puesto .der{margin-left:auto;text-align:right}
 /* ---------- chips de país ---------- */
-.chip{display:inline-flex;align-items:center;font-size:11px;font-weight:700;border-radius:6px;padding:2px 7px;letter-spacing:.03em}
+.chip{display:inline-flex;align-items:center;font-size:10.5px;font-weight:700;border-radius:6px;padding:2px 7px;letter-spacing:.03em}
 .chip.SV{background:var(--sv-bg);color:var(--sv)} .chip.GT{background:var(--gt-bg);color:var(--gt)}
 /* ---------- gráficas ---------- */
 svg{display:block;width:100%;overflow:visible}
@@ -125,7 +196,7 @@ svg .val{fill:var(--ink-2);font-size:11px;font-weight:600;font-variant-numeric:t
 svg .lab{fill:var(--ink);font-size:12px;font-weight:500}
 .hit{fill:transparent;cursor:default}
 .hit:hover{fill:var(--hover)}
-.tip{position:fixed;pointer-events:none;background:var(--surface);color:var(--ink);border:1px solid var(--ring);box-shadow:0 10px 30px rgba(15,27,45,.18);border-radius:12px;padding:10px 12px;font-size:12px;z-index:10;display:none;min-width:170px}
+.tip{position:fixed;pointer-events:none;background:var(--surface);color:var(--ink);border:1px solid var(--line-2);box-shadow:0 12px 30px rgba(0,0,0,.35);border-radius:10px;padding:10px 12px;font-size:12px;z-index:40;display:none;min-width:170px}
 .tip .t{font-weight:700;margin-bottom:6px}
 .tip .r{display:flex;justify-content:space-between;gap:14px;color:var(--ink-2);padding:1px 0}
 .tip .r b{color:var(--ink);font-weight:650;font-variant-numeric:tabular-nums}
@@ -138,37 +209,32 @@ svg .lab{fill:var(--ink);font-size:12px;font-weight:500}
 .pais-bar{height:14px;border-radius:0 6px 6px 0;transition:width .5s ease}
 .pais-row.SV .pais-bar{background:var(--sv)} .pais-row.GT .pais-bar{background:var(--gt)}
 .pais-row .pv{text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
-/* ---------- tablas ---------- */
-.tbl-wrap{overflow:auto;max-height:520px;border-radius:12px;border:1px solid var(--grid)}
-table{border-collapse:collapse;width:100%;font-size:12.5px}
-th,td{padding:8px 12px;text-align:left;border-bottom:1px solid var(--grid);white-space:nowrap}
-th{position:sticky;top:0;background:var(--navy-2);color:#fff;font-weight:600;z-index:1;cursor:pointer;user-select:none;font-size:12px}
-tbody tr:nth-child(even) td{background:rgba(127,140,170,.05)}
+/* ---------- tablas (como Marketing) ---------- */
+.tbl-wrap{overflow:auto;max-height:520px;border-radius:10px;border:1px solid var(--line)}
+table{border-collapse:collapse;width:100%;font-size:12px;background:var(--surface)}
+th,td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+th{position:sticky;top:0;background:var(--surface-3);color:var(--muted);font-weight:800;z-index:1;cursor:pointer;user-select:none;font-size:10px;text-transform:uppercase;letter-spacing:.06em}
+th:hover{color:var(--ink-2)}
+tbody tr:nth-child(even) td{background:rgba(255,255,255,.015)}
 tbody tr:hover td{background:var(--hover)}
 td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
-tr.tot td{font-weight:750;border-top:2px solid var(--axis);background:var(--page)!important}
+tr.tot td{font-weight:800;border-top:2px solid var(--axis);background:var(--surface-2)!important}
 .mx td.n{min-width:58px;text-align:center}
 .mx th.n{text-align:center}
 .row-head{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:12px}
 .row-head h2{margin-bottom:2px}
 .pager{display:flex;gap:8px;align-items:center;color:var(--ink-2);font-size:12px;margin-top:12px}
-.warn{background:var(--warn-bg);color:var(--warn-ink);border-radius:12px;padding:10px 14px;font-size:13px;margin-bottom:16px;display:none;box-shadow:var(--shadow)}
+.warn{background:var(--warn-bg);color:var(--warn-ink);border:1px solid rgba(242,201,76,.3);border-radius:10px;padding:10px 14px;font-size:12.5px;margin-bottom:16px;display:none}
 .empty{color:var(--muted);padding:30px;text-align:center}
 .muted{color:var(--muted)}
-footer{max-width:1320px;margin:0 auto;padding:0 20px 28px;color:var(--muted);font-size:12px;text-align:center}
+footer{max-width:1500px;margin:0 auto;padding:0 30px 28px;color:var(--muted);font-size:11.5px;text-align:center}
 @keyframes sube{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
-/* selector de tema */
-.tema{display:inline-flex;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.25);border-radius:999px;padding:3px;gap:2px}
-.tema button{border:0;background:transparent;color:rgba(255,255,255,.8);border-radius:999px;padding:4px 10px;font:inherit;font-size:12px;cursor:pointer;display:inline-flex;align-items:center;gap:5px;transition:background .2s,color .2s}
-.tema button svg{width:14px;height:14px}
-.tema button:hover{color:#fff;background:rgba(255,255,255,.12)}
-.tema button[aria-pressed=true]{background:#fff;color:var(--navy-2);font-weight:600}
-body,.card,.filters,select,input,.btn,th,td{transition:background-color .3s,color .3s,border-color .3s}
+body,.card,input,.btn,th,td{transition:background-color .3s,color .3s,border-color .3s}
 /* animaciones */
 .kpis .card:nth-child(1){animation-delay:.05s}.kpis .card:nth-child(2){animation-delay:.12s}.kpis .card:nth-child(3){animation-delay:.19s}.kpis .card:nth-child(4){animation-delay:.26s}.kpis .card:nth-child(5){animation-delay:.33s}
 .kpi .ic{animation:pop .6s cubic-bezier(.2,.9,.3,1.4) both;animation-delay:inherit}
-.kpi:hover{transform:translateY(-3px);box-shadow:0 12px 28px rgba(15,27,45,.12)}
-.kpi{transition:transform .2s,box-shadow .2s}
+.kpi:hover{transform:translateY(-1px);border-color:var(--line-2)}
+.kpi{transition:transform .2s,border-color .2s}
 .crece-x{transform-box:fill-box;transform-origin:left center;animation:creceX .8s cubic-bezier(.2,.8,.2,1) both}
 .crece-y{transform-box:fill-box;transform-origin:center bottom;animation:creceY .8s cubic-bezier(.2,.8,.2,1) both}
 .aparece{animation:aparece .5s ease both}
@@ -182,7 +248,6 @@ body,.card,.filters,select,input,.btn,th,td{transition:background-color .3s,colo
 @keyframes anchoX{from{width:0}}
 @keyframes aparece{from{opacity:0}to{opacity:1}}
 @keyframes pop{0%{transform:scale(.3);opacity:0}70%{transform:scale(1.12);opacity:1}100%{transform:scale(1)}}
-@keyframes logoEntra{0%{transform:scale(.5) rotate(-25deg);opacity:0}100%{transform:none;opacity:1}}
 /* brillo */
 .hit:hover + .lab + .crece-x, .hit:hover + .crece-y{filter:drop-shadow(0 0 7px var(--s1)) brightness(1.08)}
 .crece-x,.crece-y{transition:filter .2s}
@@ -198,76 +263,51 @@ body,.card,.filters,select,input,.btn,th,td{transition:background-color .3s,colo
 .card:not(.visto) .crece-x,.card:not(.visto) .crece-y,.card:not(.visto) .aparece,.card:not(.visto) .brillo,
 .card:not(.visto) .pais-bar,.card:not(.visto) .pais-bar::after,.card:not(.visto) .mx tbody tr,
 .card:not(.visto) .puesto,.card:not(.visto) .medalla{animation-play-state:paused}
-/* filtro Periodo (casillas) */
-.multi{position:relative}
-.multi-btn{font:inherit;color:var(--ink);background:var(--page);border:1px solid var(--ring);border-radius:10px;padding:7px 10px;min-height:36px;min-width:200px;display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer;text-align:left;transition:border-color .15s,box-shadow .15s}
-.multi-btn:hover,.multi-btn[aria-expanded=true]{border-color:var(--accent);box-shadow:0 0 0 3px var(--hover)}
-.multi-btn svg{width:16px;height:16px;flex:0 0 16px;color:var(--muted);transition:transform .2s}
-.multi-btn[aria-expanded=true] svg{transform:rotate(180deg)}
-.multi-btn span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:240px}
-.multi-menu{position:absolute;top:calc(100% + 6px);left:0;z-index:30;background:var(--surface);border:1px solid var(--ring);border-radius:12px;box-shadow:0 14px 34px rgba(15,27,45,.18);padding:6px;min-width:220px;max-height:340px;overflow:auto;animation:aparece .15s ease both}
-.multi-menu label{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:8px;cursor:pointer;font-size:13px;color:var(--ink);text-transform:none;letter-spacing:0;font-weight:500}
-.multi-menu label:hover{background:var(--hover)}
-.multi-menu input{width:16px;height:16px;accent-color:var(--navy-3);cursor:pointer;margin:0}
-.multi-menu .todos{font-weight:700;border-bottom:1px solid var(--grid);border-radius:8px 8px 0 0;margin-bottom:4px;padding-bottom:9px}
-.multi-menu .cant{margin-left:auto;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
-@media (max-width:600px){.hero h1{font-size:21px}.logo,.logo img{height:48px;width:48px;flex-basis:48px}.filters{position:static}}
-.sem-v{background:#d8f3e1!important;color:#0f5c33;font-weight:650}
-.sem-a{background:#fdf1c7!important;color:#6f5000;font-weight:600}
-.sem-r{background:#fbe0e0!important;color:#9b1c1c;font-weight:600}
+@media (max-width:600px){.cab h1{font-size:21px}}
+/* semáforo de la tabla Ejecutivo × mes: verde / amarillo / rojo */
+.sem-v{background:#153f2a!important;color:#86efac;font-weight:650}
+.sem-a{background:#3f3413!important;color:#fcd34d;font-weight:600}
+.sem-r{background:#44191c!important;color:#fca5a5;font-weight:600}
 .sem-0{color:var(--muted)}
 .semaforo{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--ink-2);margin-bottom:10px}
 .semaforo span{display:inline-flex;align-items:center;gap:6px}
-.semaforo b{width:14px;height:14px;border-radius:4px;display:inline-block;border:1px solid var(--ring)}
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .sem-v{background:#153f2a!important;color:#86efac}:root:not([data-theme="light"]) .sem-a{background:#3f3413!important;color:#fcd34d}:root:not([data-theme="light"]) .sem-r{background:#44191c!important;color:#fca5a5}}
-:root[data-theme="dark"] .sem-v{background:#153f2a!important;color:#86efac}:root[data-theme="dark"] .sem-a{background:#3f3413!important;color:#fcd34d}:root[data-theme="dark"] .sem-r{background:#44191c!important;color:#fca5a5}
+.semaforo b{width:14px;height:14px;border-radius:4px;display:inline-block;border:1px solid var(--line)}
 </style>
 </head>
 <body>
-<div class="hero">
-  <div class="hero-in">
-    <div class="brand">
-      <div class="logo"><img src="https://res.cloudinary.com/dkiaw6byq/image/upload/v1766763079/LOGO_RED_PTT_SIN_FONDO_eejqiu.png" alt="RED" onerror="this.outerHTML='<span>RED</span>'"></div>
-      <div>
-        <h1>Flash de altas</h1>
-        <div class="sub" id="subtitulo">Cargando datos…</div>
-      </div>
-    </div>
-    <div class="hero-right">
-      <span class="flag"><b style="background:var(--sv)"></b>El Salvador</span>
-      <span class="flag"><b style="background:var(--gt)"></b>Guatemala</span>
-      <span class="pill" id="fuente"><i></i>Fuente</span>
-      <div class="tema" id="tema" role="group" aria-label="Tema">
-        <button data-t="claro" title="Tema claro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>Claro</button>
-        <button data-t="oscuro" title="Tema oscuro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 019.5 4a8 8 0 1010.5 10.5z"/></svg>Oscuro</button>
-        <button data-t="auto" title="Igual que la computadora"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>Auto</button>
-      </div>
-    </div>
-  </div>
-</div>
 <div class="wrap">
+
+  <div class="cab">
+    <div>
+      <h1>Flash de altas</h1>
+      <p class="sub" id="subtitulo">Cargando datos…</p>
+    </div>
+    <span class="pill" id="fuente"><i></i>Fuente</span>
+  </div>
+  <!-- logo y selector de tema: ya no se muestran (el tablero va siempre en oscuro) -->
+  <div hidden>
+    <div class="logo"><img src="https://res.cloudinary.com/dkiaw6byq/image/upload/v1766763079/LOGO_RED_PTT_SIN_FONDO_eejqiu.png" alt="RED"></div>
+    <div class="tema" id="tema" role="group" aria-label="Tema"><button data-t="claro">Claro</button><button data-t="oscuro">Oscuro</button><button data-t="auto">Auto</button></div>
+  </div>
 
   <div class="warn" id="aviso"></div>
 
-  <div class="filters" role="group" aria-label="Filtros">
-    <div class="f"><label for="fPais">País</label><select id="fPais"></select></div>
-    <div class="f"><label id="lPeriodo">Periodo</label>
-      <div class="multi" id="fPeriodo">
-        <button type="button" class="multi-btn" id="fPeriodoBtn" aria-haspopup="true" aria-expanded="false" aria-labelledby="lPeriodo fPeriodoTxt"><span id="fPeriodoTxt">Todos los meses</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
-        <div class="multi-menu" id="fPeriodoMenu" hidden></div>
-      </div>
-    </div>
-    <div class="f"><label for="fVend">Ejecutivo</label><select id="fVend"></select></div>
-    <div class="f"><label for="fTipo">Tipo de alta</label><select id="fTipo"></select></div>
-    <div class="f"><label for="fTec">Tecnología</label><select id="fTec"></select></div>
-    <div class="f"><label>Contar por</label>
+  <!-- Barra de filtros con el mismo diseño que Marketing · Flujo de ventas.
+       La lógica está en montarBarra(); filtrados() lee lo que se eligió. -->
+  <div class="fx-bar" id="fxBar">
+    <div class="op-group" role="group" aria-label="Operaciones"><span class="op-label">Operaciones</span><button class="op-btn active" type="button" data-op="">Todos</button><button class="op-btn" type="button" data-op="GT" title="Guatemala"><span class="op-flag" aria-hidden="true"><svg viewBox="0 0 30 20"><rect width="30" height="20" fill="#4997d0"/><rect x="10" width="10" height="20" fill="#fff"/><circle cx="15" cy="10" r="3" fill="none" stroke="#3a8a3e" stroke-width="1.3"/></svg></span>GT</button><button class="op-btn" type="button" data-op="SV" title="El Salvador"><span class="op-flag" aria-hidden="true"><svg viewBox="0 0 30 20"><rect width="30" height="20" fill="#0f47af"/><rect y="6.67" width="30" height="6.66" fill="#fff"/><circle cx="15" cy="10" r="2.4" fill="none" stroke="#c9a227" stroke-width="1.1"/></svg></span>SV</button></div>
+    <div class="fx-control is-off" id="fxMoneda" title="Consultando el tipo de cambio del Banco de Guatemala…"><span class="fx-rate" id="fxRate">1 USD = Q …</span><span class="fx-sym">$</span><label class="switch"><input id="fxSwitch" type="checkbox" aria-label="Mostrar el valor mensual en quetzales" disabled><i class="switch-track"></i></label><span class="fx-sym">Q</span></div>
+    <div class="period-control" id="periodo"><span class="period-icon" data-icon="calendar"></span><span class="period-label">Período</span><input class="period-input period-from" id="periodoDesde" type="date" aria-label="Fecha de alta desde"><span class="period-sep">—</span><input class="period-input period-to" id="periodoHasta" type="date" aria-label="Fecha de alta hasta"><button class="period-reset" id="periodoReset" type="button" title="Restablecer período" aria-label="Restablecer período"><span data-icon="reset"></span></button></div>
+    <div class="xf" id="xf"><button class="filter-btn xf-toggle" id="xfToggle" type="button" aria-expanded="false" aria-controls="xfPanel"><span data-icon="filter"></span> Filtros <b class="xf-count" id="xfCount" hidden>0</b><svg class="xf-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></button><div class="xf-panel" id="xfPanel" hidden><div class="xf-columns" id="xfColumnas"></div><div class="xf-footer"><button class="ghost-btn xf-clear" id="xfLimpiar" type="button">Limpiar todo</button><button class="ghost-btn xf-apply" id="xfAplicar" type="button">Aplicar</button></div></div></div>
+    <div class="op-group" role="group" aria-label="Contar por"><span class="op-label">Contar por</span>
       <div class="seg" id="medida">
-        <button data-m="altas" aria-pressed="true" title="Cada anexo = 1 alta">Altas (anexos)</button>
-        <button data-m="unidades" aria-pressed="false" title="Suma de CANTIDAD EQUIPO">Unidades (equipos)</button>
+        <button type="button" data-m="altas" aria-pressed="true" title="Cada anexo = 1 alta">Altas (anexos)</button>
+        <button type="button" data-m="unidades" aria-pressed="false" title="Suma de CANTIDAD EQUIPO">Unidades (equipos)</button>
       </div>
     </div>
-    <button class="btn" id="limpiar">Limpiar filtros</button>
+    <button class="filter-btn reset" id="limpiar" type="button" title="Volver a filtros por defecto" aria-label="Volver a filtros por defecto"><span data-icon="reset"></span></button>
+    <div class="xf-chips" id="xfChips"></div>
   </div>
 
   <section class="kpis" id="kpis"></section>
@@ -471,43 +511,188 @@ function montarTema() {
     marcar(t);
   });
 }
-/* --- filtro Periodo: casillas para elegir uno o varios meses --- */
+/* --- barra de filtros (mismo diseño que Marketing · Flujo de ventas) ---
+   Operaciones (Todos / GT / SV) + panel "Filtros" con casillas, buscador y "Aplicar".
+   Solo decide QUÉ filas entran; los cálculos siguen en pintar*().
+   FILTRO.op: '' = todos los países · FILTRO.sel[k]: null = sin filtro (todo marcado) o un Set.
+   El mes sigue en MESES_SEL, que es siempre un Set (igual que antes). */
 let MESES_SEL = new Set();
-function montarPeriodo(meses) {
-  const menu = $('fPeriodoMenu'), btn = $('fPeriodoBtn');
+const FILTRO = { op: '', sel: { vendedor: null, tipoAlta: null, tecnologia: null } };
+const PERIODO = { desde: '', hasta: '', min: '', max: '' };   // fechas AAAA-MM-DD; min/max = rango completo de los datos
+const ICONOS_FX = {
+  calendar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 9h18"/></svg>',
+  filter: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M7 12h10M10 19h4"/></svg>',
+  reset: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12a8 8 0 1 0 2.3-5.7L4 8.5M4 4v4.5h4.5"/></svg>',
+};
+const normTxt = s => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+function montarBarra(meses) {
+  const panel = $('xfPanel'), toggle = $('xfToggle'), columnas = $('xfColumnas');
+  document.querySelectorAll('#fxBar [data-icon]').forEach(el => el.innerHTML = ICONOS_FX[el.dataset.icon] || '');
   const cuantas = {}; DATA.forEach(r => cuantas[r.mes] = (cuantas[r.mes] || 0) + 1);
-  menu.innerHTML = `<label class="todos"><input type="checkbox" id="perTodos">Seleccionar todos</label>` +
-    meses.map(m => `<label><input type="checkbox" class="perMes" value="${m}">${nomMes(m)}<span class="cant">${fmt(cuantas[m] || 0)}</span></label>`).join('');
-  menu.querySelectorAll('.perMes').forEach(c => c.onchange = () => { MESES_SEL = new Set([...menu.querySelectorAll('.perMes:checked')].map(x => x.value)); actualizarPeriodo(meses); pagina = 0; pintar(); });
-  $('perTodos').onchange = e => { marcarPeriodo(e.target.checked ? meses : []); pagina = 0; pintar(); };
-  const abrir = si => { menu.hidden = !si; btn.setAttribute('aria-expanded', si); };
-  btn.onclick = e => { e.stopPropagation(); abrir(menu.hidden); };
-  menu.onclick = e => e.stopPropagation();
-  document.addEventListener('click', () => abrir(false));
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') abrir(false); });
-  marcarPeriodo(meses);
+  const COLS = [
+    { key: 'mes', et: 'Mes', ops: meses.map(m => ({ v: m, t: nomMes(m), n: cuantas[m] || 0 })) },
+    { key: 'vendedor', et: 'Ejecutivo', ops: unicos('vendedor').map(v => ({ v, t: nomVend(v) })) },
+    { key: 'tipoAlta', et: 'Tipo de alta', ops: unicos('tipoAlta').map(v => ({ v, t: v === 'ADICION' ? 'Adición' : v === 'NUEVA' ? 'Nueva' : v })) },
+    { key: 'tecnologia', et: 'Tecnología', ops: unicos('tecnologia').map(v => ({ v, t: v })) },
+  ];
+  const aplicado = c => c.key === 'mes' ? MESES_SEL : FILTRO.sel[c.key];          // null = todo
+  const activo = c => c.key === 'mes' ? c.ops.some(o => !MESES_SEL.has(o.v)) : FILTRO.sel[c.key] !== null;
+  const guardar = (c, set) => {
+    const todo = c.ops.every(o => set.has(o.v));
+    if (c.key === 'mes') MESES_SEL = todo ? new Set(meses) : new Set(set);
+    else FILTRO.sel[c.key] = todo ? null : new Set(set);                          // todo marcado = sin filtro
+  };
+  const todoMarcado = () => { MESES_SEL = new Set(meses); Object.keys(FILTRO.sel).forEach(k => FILTRO.sel[k] = null); };
+
+  /* ---- panel: lo marcado es un borrador; solo "Aplicar" lo usa ---- */
+  let borrador = {}, busq = {};
+  columnas.innerHTML = COLS.map(c => `<div class="xf-col" data-cat="${c.key}"><h5>${esc(c.et)} <small></small></h5><input class="input xf-search" type="search" placeholder="Buscar…" aria-label="Buscar en ${esc(c.et)}"><div class="xf-list"></div></div>`).join('');
+  const col = c => columnas.querySelector(`[data-cat="${c.key}"]`);
+  const pintarCol = c => {
+    const b = normTxt(busq[c.key]), sel = borrador[c.key];
+    const vis = c.ops.filter(o => normTxt(o.t).includes(b));          // el buscador solo oculta casillas
+    const todosVis = vis.length > 0 && vis.every(o => sel.has(o.v)), algunoVis = vis.some(o => sel.has(o.v));
+    col(c).querySelector('h5 small').textContent = `${c.ops.filter(o => sel.has(o.v)).length}/${c.ops.length}`;
+    const lista = col(c).querySelector('.xf-list');
+    lista.innerHTML = vis.length
+      ? `<label class="xf-option all"><input type="checkbox" data-all ${todosVis ? 'checked' : ''}> (Seleccionar todo${b ? ' lo visible' : ''})</label>` +
+        vis.map(o => `<label class="xf-option"><input type="checkbox" data-item="${esc(o.v)}" ${sel.has(o.v) ? 'checked' : ''}> ${esc(o.t)}${o.n != null ? `<span class="cant">${fmt(o.n)}</span>` : ''}</label>`).join('')
+      : '<div class="xf-empty">Sin coincidencias</div>';
+    const all = lista.querySelector('[data-all]'); if (all) all.indeterminate = algunoVis && !todosVis;
+  };
+  COLS.forEach(c => {
+    col(c).querySelector('.xf-search').addEventListener('input', e => { busq[c.key] = e.target.value; pintarCol(c); });
+    col(c).querySelector('.xf-list').addEventListener('change', e => {
+      const inp = e.target, sel = borrador[c.key];
+      if (inp.hasAttribute('data-all')) { const b = normTxt(busq[c.key]); c.ops.filter(o => normTxt(o.t).includes(b)).forEach(o => inp.checked ? sel.add(o.v) : sel.delete(o.v)); }
+      else inp.checked ? sel.add(inp.dataset.item) : sel.delete(inp.dataset.item);
+      pintarCol(c);
+    });
+  });
+  const abrir = () => {
+    COLS.forEach(c => { const ap = aplicado(c); borrador[c.key] = new Set(ap ? [...ap] : c.ops.map(o => o.v)); busq[c.key] = ''; col(c).querySelector('.xf-search').value = ''; pintarCol(c); });
+    panel.hidden = false; toggle.setAttribute('aria-expanded', 'true');
+    panel.scrollIntoView({ block: 'nearest', behavior: 'smooth' });   // en pantallas bajas, que se vea completo con "Aplicar"
+  };
+  const cerrar = () => { panel.hidden = true; toggle.setAttribute('aria-expanded', 'false'); };   // cerrar sin "Aplicar" no cambia nada
+  const pintarChips = () => {
+    const act = COLS.filter(activo), cuenta = $('xfCount');
+    cuenta.hidden = !act.length; cuenta.textContent = act.length;
+    $('xfChips').innerHTML = act.map(c => {
+      const set = aplicado(c), nombres = c.ops.filter(o => set.has(o.v)).map(o => o.t);
+      const txt = !nombres.length ? 'ninguno' : nombres.length <= 2 ? nombres.join(', ') : `${nombres.length} de ${c.ops.length}`;
+      return `<span class="xf-chip">${esc(c.et)}: <b>${esc(txt)}</b><button type="button" data-quitar="${c.key}" aria-label="Quitar filtro ${esc(c.et)}">×</button></span>`;
+    }).join('');
+  };
+  const cambio = () => { pagina = 0; pintarChips(); pintar(); };
+  toggle.onclick = () => panel.hidden ? abrir() : cerrar();
+  $('xfAplicar').onclick = () => { COLS.forEach(c => guardar(c, borrador[c.key])); cerrar(); cambio(); };
+  $('xfLimpiar').onclick = () => COLS.forEach(c => { borrador[c.key] = new Set(c.ops.map(o => o.v)); pintarCol(c); });
+  $('xfChips').onclick = e => {
+    const key = e.target.closest('[data-quitar]')?.dataset.quitar; if (!key) return;
+    const c = COLS.find(x => x.key === key); guardar(c, new Set(c.ops.map(o => o.v))); cerrar(); cambio();
+  };
+  document.addEventListener('click', e => { if (!panel.hidden && !e.composedPath().includes($('xf'))) cerrar(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !panel.hidden) { cerrar(); toggle.focus(); } });
+
+  /* ---- Operaciones (país) ---- */
+  const marcarOp = () => document.querySelectorAll('#fxBar .op-btn').forEach(b => b.classList.toggle('active', b.dataset.op === FILTRO.op));
+  document.querySelectorAll('#fxBar .op-btn').forEach(b => b.onclick = () => { if (FILTRO.op === b.dataset.op) return; FILTRO.op = b.dataset.op; marcarOp(); cambio(); });
+
+  /* ---- Volver a filtros por defecto (lo mismo que hacía "Limpiar filtros") ---- */
+  /* ---- Período: fecha de alta DESDE / HASTA (al abrir = rango completo) ---- */
+  const fechas = DATA.map(r => r.fecha).sort(), desde = $('periodoDesde'), hasta = $('periodoHasta');
+  PERIODO.min = fechas[0] || ''; PERIODO.max = fechas[fechas.length - 1] || '';
+  const periodoCompleto = () => { PERIODO.desde = desde.value = PERIODO.min; PERIODO.hasta = hasta.value = PERIODO.max; };
+  const leerPeriodo = () => {
+    if (!desde.value) desde.value = PERIODO.min;          // si borran una fecha, vuelve al extremo del rango
+    if (!hasta.value) hasta.value = PERIODO.max;
+    if (desde.value > hasta.value) {                       // al revés: se intercambian y se avisa
+      [desde.value, hasta.value] = [hasta.value, desde.value];
+      const caja = $('periodo'); caja.classList.add('cambiado'); caja.title = 'La fecha DESDE era posterior a HASTA: se intercambiaron.';
+      clearTimeout(caja.reloj); caja.reloj = setTimeout(() => { caja.classList.remove('cambiado'); caja.title = ''; }, 3000);
+    }
+    PERIODO.desde = desde.value; PERIODO.hasta = hasta.value; cambio();
+  };
+  desde.onchange = leerPeriodo; hasta.onchange = leerPeriodo;
+  $('periodoReset').onclick = () => { periodoCompleto(); cambio(); };
+
+  $('limpiar').onclick = () => { FILTRO.op = ''; marcarOp(); todoMarcado(); periodoCompleto(); $('buscar').value = ''; fijarMoneda(false); cerrar(); cambio(); };
+
+  todoMarcado(); periodoCompleto(); pintarChips();
 }
-function marcarPeriodo(lista) {
-  MESES_SEL = new Set(lista);
-  document.querySelectorAll('#fPeriodoMenu .perMes').forEach(c => c.checked = MESES_SEL.has(c.value));
-  actualizarPeriodo([...document.querySelectorAll('#fPeriodoMenu .perMes')].map(c => c.value));
+/* si la letra Montserrat llega después del primer dibujo, se vuelve a medir que los números quepan (solo visual) */
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => setTimeout(() => { if ($('kpis').children.length) ajustarNumeros(); }, 1500));
+/* --- tipo de cambio y tarjeta "Valor mensual de servicios" en $ o Q ---
+   Mismo servicio que Marketing (tasa oficial del Banco de Guatemala). Solo cambia lo que se
+   MUESTRA en esa tarjeta: los montos de cada alta no se tocan. Si no hay tipo de cambio,
+   la tarjeta muestra cada país en su moneda, como siempre (nunca se usa una tasa fija). */
+const FX_URL = 'https://excel-parser-m9q8.onrender.com/api/tipo-cambio';
+const TC = { estado: 'cargando', tasa: null, fecha: '', vieja: false, fuente: '' };   // estado: cargando | ok | sin
+let EN_Q = false, VALOR_ULT = {};   // VALOR_ULT: suma por país de lo filtrado (la guarda pintarKpis)
+async function cargarTipoCambio() {
+  for (let intento = 1; intento <= 2; intento++) {   // 20 s por intento; el 2.º por si Render estaba dormido
+    const ctrl = new AbortController(), reloj = setTimeout(() => ctrl.abort(), 20000);
+    try {
+      const r = await fetch(FX_URL + '?_=' + Date.now(), { cache: 'no-store', signal: ctrl.signal });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const d = await r.json(), tasa = Number(d && d.rate_gtq_per_usd);
+      if (!(tasa > 0)) throw new Error('sin tasa');
+      Object.assign(TC, { estado: 'ok', tasa, fecha: d.date || '', vieja: d.stale === true, fuente: d.source || 'Banco de Guatemala' });
+      break;
+    } catch (e) { if (intento === 2) TC.estado = 'sin'; }
+    finally { clearTimeout(reloj); }
+  }
+  pintarBotonTC(); repintarValor();
 }
-function actualizarPeriodo(meses) {
-  const sel = meses.filter(m => MESES_SEL.has(m)), todos = $('perTodos');
-  todos.checked = sel.length === meses.length; todos.indeterminate = sel.length > 0 && sel.length < meses.length;
-  $('fPeriodoTxt').textContent = sel.length === meses.length ? 'Todos los meses' : !sel.length ? 'Ningún mes' :
-    sel.length === 1 ? nomMes(sel[0]) : `${sel.length} meses: ${sel.map(m => MESES[+m.slice(5) - 1]).join(', ')}`;
+function pintarBotonTC() {
+  const caja = $('fxMoneda'), rate = $('fxRate'), ok = TC.estado === 'ok';
+  $('fxSwitch').disabled = !ok; caja.classList.toggle('is-off', !ok);
+  rate.classList.toggle('is-fallback', TC.estado === 'sin' || (ok && TC.vieja));
+  if (ok) {
+    rate.textContent = `1 USD = Q ${TC.tasa.toFixed(5)}${TC.vieja ? ` (${TC.fecha.slice(0, 5)})` : ''}`;
+    caja.title = TC.vieja ? `Tipo de cambio del ${TC.fecha}: el Banco de Guatemala no respondió hoy y se usa su última tasa oficial`
+                          : `Tipo de cambio oficial · ${TC.fuente}${TC.fecha ? ' · ' + TC.fecha : ''}`;
+  } else if (TC.estado === 'sin') {
+    rate.textContent = 'Sin tipo de cambio';
+    caja.title = 'No se pudo consultar el Banco de Guatemala; los montos se muestran en su moneda original.';
+  }
 }
+function fijarMoneda(enQ) {
+  EN_Q = enQ; $('fxSwitch').checked = enQ;
+  const sim = $('fxMoneda').querySelectorAll('.fx-sym');
+  sim[0].classList.toggle('on', !enQ); sim[1].classList.toggle('on', enQ);
+}
+/* texto de la tarjeta: v = monto(s), d = nota, tip = montos originales al pasar el mouse */
+function textoValor(valor) {
+  const pv = Object.keys(valor).sort((a, b) => b.localeCompare(a));
+  if (!pv.length) return { v: '—', d: '', tip: '' };
+  const enSuMoneda = p => MONEDA[p] === 'Q' ? 'quetzales' : 'dólares';
+  if (TC.estado !== 'ok' || !pv.every(p => MONEDA[p])) {   // sin tipo de cambio: cada país en su moneda (como antes)
+    const d = pv.length > 1 ? pv.map(p => `${p} en ${enSuMoneda(p)}`).join(' · ') : `${PAISES[pv[0]] || pv[0]} · en ${enSuMoneda(pv[0])}`;
+    return { v: pv.map(p => cuenta(valor[p], 'm', p)).join('<br>'), d: d + (TC.estado === 'sin' ? ' · sin tipo de cambio' : ''), tip: '' };
+  }
+  const t = TC.tasa, dest = EN_Q ? 'Q' : '$', mon = EN_Q ? 'quetzales' : 'dólares';
+  const total = pv.reduce((s, p) => s + (MONEDA[p] === dest ? valor[p] : EN_Q ? valor[p] * t : valor[p] / t), 0);
+  const tc = `TC ${t.toFixed(5)}${TC.vieja ? ` del ${TC.fecha}` : ''}`;
+  const d = pv.length > 1 ? (EN_Q ? `SV convertido a quetzales + GT · ${tc}` : `SV + GT convertido a dólares · ${tc}`)
+    : `${PAISES[pv[0]] || pv[0]} · ${MONEDA[pv[0]] === dest ? `en ${mon} (moneda original)` : `convertido a ${mon} · ${tc}`}`;
+  const tip = 'Montos originales (como los entrega SAN): ' + pv.map(p => `${p} ${fmtMon(valor[p], p)}`).join(' · ');
+  return { v: cuenta(total, 'm', EN_Q ? 'GT' : 'SV'), d, tip };
+}
+/* redibuja SOLO la tarjeta del valor (al mover el interruptor o cuando llega el tipo de cambio) */
+function repintarValor() {
+  const k = document.querySelector('#kpis .k4'); if (!k) return;
+  const r = textoValor(VALOR_ULT), v = k.querySelector('.v');
+  v.innerHTML = r.v; k.querySelector('.d').innerHTML = r.d; k.title = r.tip;
+  v.style.fontSize = ''; let fs = 30;
+  while (v.scrollWidth > v.parentElement.clientWidth && fs > 14) { fs -= 1; v.style.fontSize = fs + 'px'; }
+  animarCuentas(k);
+}
+$('fxSwitch').addEventListener('change', e => { fijarMoneda(e.target.checked); repintarValor(); });
+fijarMoneda(false); cargarTipoCambio();
 function montarFiltros() {
-  const paises = [...new Set(['SV', 'GT', ...unicos('pais')])];
-  opciones($('fPais'), paises, 'Todos', p => PAISES[p] ? `${PAISES[p]}${DATA.some(r => r.pais === p) ? '' : ' (sin datos)'}` : p);
-  const meses = unicos('mes');
-  montarPeriodo(meses);
-  opciones($('fVend'), unicos('vendedor'), 'Todos', nomVend);
-  opciones($('fTipo'), unicos('tipoAlta'), 'Todos', t => t === 'ADICION' ? 'Adición' : t === 'NUEVA' ? 'Nueva' : t);
-  opciones($('fTec'), unicos('tecnologia'), 'Todas');
-  ['fPais', 'fVend', 'fTipo', 'fTec'].forEach(id => $(id).onchange = () => { pagina = 0; pintar(); });
-  $('limpiar').onclick = () => { ['fPais', 'fVend', 'fTipo', 'fTec'].forEach(id => $(id).value = ''); marcarPeriodo(meses); $('buscar').value = ''; pagina = 0; pintar(); };
+  montarBarra(unicos('mes'));
   document.querySelectorAll('#medida button').forEach(b => b.onclick = () => {
     medida = b.dataset.m; document.querySelectorAll('#medida button').forEach(x => x.setAttribute('aria-pressed', x === b)); pintar();
   });
@@ -517,8 +702,8 @@ function montarFiltros() {
 }
 
 function filtrados() {
-  const p = $('fPais').value, v = $('fVend').value, t = $('fTipo').value, tec = $('fTec').value;
-  return DATA.filter(r => (!p || r.pais === p) && MESES_SEL.has(r.mes) && (!v || r.vendedor === v) && (!t || r.tipoAlta === t) && (!tec || r.tecnologia === tec));
+  const p = FILTRO.op, S = FILTRO.sel;
+  return DATA.filter(r => (!p || r.pais === p) && MESES_SEL.has(r.mes) && (!PERIODO.desde || r.fecha >= PERIODO.desde) && (!PERIODO.hasta || r.fecha <= PERIODO.hasta) && (!S.vendedor || S.vendedor.has(r.vendedor)) && (!S.tipoAlta || S.tipoAlta.has(r.tipoAlta)) && (!S.tecnologia || S.tecnologia.has(r.tecnologia)));
 }
 
 function pintar() {
@@ -554,8 +739,8 @@ function pintarKpis(F) {
   const clientes = new Set(F.map(r => r.codCliente)).size, valor = {};
   F.forEach(r => valor[r.pais] = (valor[r.pais] || 0) + r.valor);
   const pv = Object.keys(valor).sort((a, b) => b.localeCompare(a));
-  const valorTxt = pv.length ? pv.map(p => cuenta(valor[p], 'm', p)).join('<br>') : '—';
-  const valorSub = pv.length > 1 ? pv.map(p => `${p} en ${MONEDA[p] === 'Q' ? 'quetzales' : 'dólares'}`).join(' · ') : pv.length ? `${PAISES[pv[0]] || pv[0]} · en ${MONEDA[pv[0]] === 'Q' ? 'quetzales' : 'dólares'}` : '';
+  VALOR_ULT = valor; const VAL = textoValor(valor);   // monto en $ o Q según el interruptor (solo para mostrar)
+  const valorTxt = VAL.v, valorSub = VAL.d;
   const nuevas = F.filter(r => r.tipoAlta === 'NUEVA').length, ejec = new Set(F.map(r => r.vendedor)).size;
   const IC = {"altas": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 17l6-6 4 4 8-8\"/><path d=\"M14 7h7v7\"/></svg>", "uni": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"7\" y=\"2\" width=\"10\" height=\"20\" rx=\"2\"/><path d=\"M11 18h2\"/></svg>", "cli": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"9\" cy=\"8\" r=\"3.5\"/><path d=\"M2.5 20c.8-3.5 3.4-5.5 6.5-5.5s5.7 2 6.5 5.5\"/><path d=\"M16 4.5a3.5 3.5 0 010 7M18 14.8c1.9.8 3.1 2.5 3.5 5.2\"/></svg>", "val": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"2.5\" y=\"6\" width=\"19\" height=\"12\" rx=\"2\"/><circle cx=\"12\" cy=\"12\" r=\"2.5\"/><path d=\"M6 9.5v5M18 9.5v5\"/></svg>", "pct": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 3l2.5 5.5L20 9.3l-4 4 1 5.7-5-2.8-5 2.8 1-5.7-4-4 5.5-.8z\"/></svg>"};
   const t = (l, v, d, k, ic) => `<div class="card kpi ${k}"><div class="ic">${IC[ic]}</div><div><div class="l">${l}</div><div class="v">${v}</div><div class="d">${d}</div></div></div>`;
@@ -565,6 +750,7 @@ function pintarKpis(F) {
     t('Clientes', cuenta(clientes), `${fmt(ejec)} ejecutivos con altas`, 'k3', 'cli') +
     t('Valor mensual de servicios', valorTxt, valorSub, 'k4', 'val') +
     t('% altas nuevas', altas ? cuenta(Math.round(nuevas / altas * 100), '%') : '—', 'Nuevas ÷ total de altas', 'k5', 'pct');
+  $('kpis').querySelector('.k4').title = VAL.tip;
   ajustarNumeros(); animarCuentas($('kpis'));
 }
 
