@@ -1,0 +1,19 @@
+# Prueba de una sola vez: ¿GitHub Actions puede llegar a la API de preofertas?
+# Se lanza solo a mano. No manda token ni imprime el cuerpo de la respuesta.
+name: Probar alcance a la API de preofertas
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Llamar a la API (máximo 20 segundos)
+        run: |
+          curl -s -o /dev/null --max-time 20 \
+            -w 'Código HTTP: %{http_code}\nTiempo: %{time_total} s\n' \
+            https://workflow.red.com.gt/api/integraciones/dashboard/preofertas || true
