@@ -78,5 +78,13 @@ function meses() {
   const igual = antes && JSON.stringify(antes.data) === JSON.stringify(data);
   fs.mkdirSync(path.dirname(CFG.SALIDA), { recursive: true });
   fs.writeFileSync(CFG.SALIDA, JSON.stringify({ ok: true, actualizado: new Date().toISOString(), total: data.length, data }));
+     // Mantiene despierto el proyecto de Supabase donde vive el reporte semanal.
+  // Sin esto, una semana sin llamadas lo pausa y el correo del viernes no sale.
+  // No lleva llave a propósito: la función va a contestar "no autorizado" y
+  // está bien, lo único que importa es que reciba la petición.
+  try {
+    await fetch('https://scypmmaaatqsbtukuwwl.supabase.co/functions/v1/reporte-flash-publico?pais=GT');
+    console.log('✔ Supabase despierto');
+  } catch (e) { console.warn('⚠ no se pudo despertar Supabase:', e.message); }
   console.log(`✔ datos.json guardado: ${data.length} altas`, resumen, igual ? '(sin altas nuevas desde la última vez)' : '');
 })().catch(e => { console.error('✖', e.message); process.exit(1); });
