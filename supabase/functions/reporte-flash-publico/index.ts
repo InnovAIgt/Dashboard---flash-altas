@@ -8,11 +8,29 @@
    Cómo se llama:
      GET  .../reporte-flash-publico?pais=GT
      GET  .../reporte-flash-publico?pais=SV
-     Opcional:  &mes=2026-10   (por defecto, el mes en curso en Guatemala)
+     Opcional, una de las dos formas (no las dos a la vez):
+       &mes=2026-10                          un mes completo
+       &desde=2026-10-01&hasta=2026-10-15    un rango de fechas
+     Si no viene ninguna: el mes en curso, hora de Guatemala.
+
+   Por dentro SOLO existe el rango. Pedir un mes es un atajo: se traduce
+   a "del 01 al ultimo dia de ese mes". Por eso el mes y el rango no
+   pueden dar numeros distintos: hay una sola forma de contar.
 
    De dónde saca los datos (las MISMAS fuentes que el dashboard):
      Altas         -> https://innovaigt.github.io/Dashboard---flash-altas/datos.json
      Radicaciones  -> API de preofertas de Workflow
+
+   Equipos de respaldo (BACKUP): no cuentan como alta ni como radicacion en
+     proceso, porque no le generan ingresos a la empresa. En las altas la
+     palabra viene en TIPO EQUIPO; en las preofertas de Workflow puede venir
+     en negocio o en tipoContratacion, y basta con que uno lo diga.
+
+   Regla de las radicaciones en proceso (dos condiciones):
+     1. radicadas DENTRO del periodo pedido, y
+     2. sin el checklist B800 marcado.
+     Las abiertas de fuera del periodo no se muestran ni se cuentan; se puede
+     cambiar con la bandera MOSTRAR_FUERA_DEL_PERIODO del servidor.
 
    ⚠️ IMPORTANTE — CUENTAS DUPLICADAS
    Los cálculos de este archivo son una COPIA de los de
@@ -123,6 +141,27 @@ const htmlResp = (cuerpo: string, status = 200) =>
     },
   });
 
+/* Una pagina de error corta y clara, en vez de un reporte equivocado. */
+const errorHtml = (titulo: string, detalle: string, status = 400) => htmlResp(
+  `<!doctype html><html lang="es"><head><meta charset="utf-8"></head>
+   <body style="font-family:Arial;padding:24px;color:#b91c1c">
+   <h2>${titulo}</h2><p style="color:#334155">${detalle}</p></body></html>`, status);
+
+/* Gmail recorta los correos que pasan de unos 100 KB. Si alguien pide un
+   período muy largo y el reporte se pasa, es mejor avisarlo adentro del propio
+   correo que dejar que llegue cortado sin que nadie se entere. */
+const LIMITE_PESO = 95000;
+function avisarSiPesa(html: string): string {
+  const bytes = soloAscii(html).length;
+  if (bytes <= LIMITE_PESO) return html.replace("<!--AVISO_PESO-->", "");
+  return html.replace("<!--AVISO_PESO-->", `
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;margin-bottom:14px"><tr>
+    <td style="border:1px solid #fecaca;border-left:4px solid #b91c1c;background:#fef2f2;border-radius:0 8px 8px 0;padding:11px 13px;color:#7f1d1d;font-size:11px;line-height:1.55">
+      <b>Este reporte pesa ${Math.round(bytes / 1024)} KB.</b> Gmail recorta los correos que pasan de unos 100 KB, as&iacute; que es posible que las &uacute;ltimas tablas lleguen cortadas. Para verlo completo, pedilo con un per&iacute;odo m&aacute;s corto.
+    </td>
+  </tr></table>`);
+}
+
 /* ---------- normalizar una fila de altas (copiado) ---------- */
 interface Alta {
   pais: string; fecha: string; mes: string; vendedor: string; jefe: string;
@@ -158,9 +197,16 @@ const normalizarApi = (r: Record<string, unknown>) =>
 /* ---------- normalizar una radicación (copiado) ---------- */
 interface Rad {
   preOferta: string; fecha: string; mes: string; empresa: string; codigo: string;
-  vendedor: string; pais: string; negocio: string; cantidad: number | null;
+  vendedor: string; pais: string; negocio: string; contratacion: string;
+  cantidad: number | null;
   etapaNumero: number | null; etapaNombre: string;
   horasEnEtapa: number | null; vencida: boolean | null; diasDesde: number | null;
+  /* B800: fecha en que Activaciones marco la preoferta como ya dada de alta
+     en SAN. Vacio mientras el campo no exista en la API. */
+  /* B800: true cuando Activaciones ya marco la preoferta como dada de alta
+     en SAN. b800Valor guarda el valor crudo (la fecha, si viene). */
+  b800: boolean;
+  b800Valor: string;
 }
 function normalizarRad(r: Record<string, any>, ahora: number): Rad {
   const fecha = leerFecha(String(r.fecha ?? "").trim());
@@ -175,17 +221,93 @@ function normalizarRad(r: Record<string, any>, ahora: number): Rad {
     empresa: String(r.empresa ?? "").trim(), codigo: String(r.codigo ?? "").trim(),
     vendedor: String(r.vendedor ?? "").trim() || "(sin vendedor)",
     pais: String(r.pais || "").toUpperCase(), negocio: String(r.negocio ?? ""),
+    contratacion: String(r.tipoContratacion ?? ""),
     cantidad: numero(r.cantidad),
     etapaNumero: numero(etapa.numero), etapaNombre: String(etapa.nombre ?? ""),
     horasEnEtapa,
     vencida: horasEnEtapa == null || slaHoras == null ? null : horasEnEtapa >= slaHoras,
     diasDesde: isNaN(tRad) ? null : Math.max(0, Math.floor((ahora - tRad) / 86400000)),
+    b800: marcadoB800(r) !== "",
+    b800Valor: marcadoB800(r),
   };
 }
+/* =====================================================================
+   EL CHECKLIST B800
+   ---------------------------------------------------------------------
+   Activaciones marca este checklist cuando la preoferta ya quedo
+   registrada como ALTA en SAN.
+
+   Ojo: en el workflow la preoferta SIGUE diciendo "en_proceso", porque le
+   faltan etapas. El checklist no cambia ese estado. Somos nosotros los
+   que, al verlo marcado, dejamos de contarla como en proceso.
+
+   El campo se llama b800. Como no sabemos de antemano si viene como
+   fecha, como si/no, ni si cuelga de la preoferta o de una de sus
+   etapas, lo buscamos en cualquiera de esas formas y aceptamos cualquier
+   valor con contenido. Asi no se rompe si Activaciones cambia el formato.
+   ===================================================================== */
+
+/* ¿Este valor cuenta como "marcado"? Vacio, false, 0 y "no" no cuentan. */
+function valorMarcado(v: unknown): boolean {
+  if (v === null || v === undefined) return false;
+  if (typeof v === "boolean") return v;
+  const t = String(v).trim().toLowerCase();
+  return t !== "" && t !== "0" && t !== "false" && t !== "no" && t !== "null";
+}
+
+/* Busca el campo b800 en la preoferta, venga donde venga. Devuelve su
+   valor tal cual (la fecha, si la trae) o "" si no esta marcado. */
+function marcadoB800(obj: unknown, prof = 0): string {
+  if (prof > 4 || obj === null || typeof obj !== "object") return "";
+  for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
+    if (k.toLowerCase().replace(/[^a-z0-9]/g, "") === "b800") {
+      if (valorMarcado(v)) return String(v).trim();
+    }
+  }
+  for (const v of Object.values(obj as Record<string, unknown>)) {
+    if (v && typeof v === "object") {
+      const hallado = Array.isArray(v)
+        ? v.map((x) => marcadoB800(x, prof + 1)).find((x) => x) || ""
+        : marcadoB800(v, prof + 1);
+      if (hallado) return hallado;
+    }
+  }
+  return "";
+}
+
+/* Una preoferta con el B800 marcado ya es un alta: deja de estar en proceso. */
+const yaEsAlta = (r: Rad): boolean => r.b800;
+
 const negocioRad = (r: Rad) =>
   r.negocio.trim().toUpperCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 /* Igual que el dashboard: empresa vacía -> se muestra el código del cliente */
 const empresaRad = (r: Rad) => r.empresa || (r.codigo ? `(sin nombre) ${r.codigo}` : "—");
+
+/* =====================================================================
+   EQUIPOS BACKUP  —  NO CUENTAN COMO ALTA
+   ---------------------------------------------------------------------
+   Cuando el TIPO EQUIPO de un anexo es BACKUP, ese anexo es un equipo de
+   respaldo: no es una venta y no le genera ingresos a la empresa (su
+   VALOR TOTAL SERVICIOS viene en 0). Por eso no debe contarse como alta.
+
+   El descarte se hace al TRAER los datos, antes de cualquier calculo. Asi
+   esos registros quedan fuera de todo —altas, unidades, SIM, clientes,
+   valor y las tres graficas— sin tener que acordarse de excluirlos en
+   cada lugar. Un solo filtro, un solo sitio.
+
+   La comparacion ignora mayusculas, espacios y signos: "BACKUP",
+   "Backup", "back-up" y " BACKUP " se descartan todos por igual.
+   ===================================================================== */
+const diceBackup = (v: unknown) =>
+  String(v ?? "").toUpperCase().replace(/[^A-Z]/g, "") === "BACKUP";
+
+const esBackup = (r: Alta) => diceBackup(r.tipoEquipo);
+
+/* Una preoferta de backup tampoco cuenta como radicacion en proceso: es el
+   mismo criterio que en las altas. En Workflow la palabra puede venir en
+   cualquiera de dos campos —negocio o tipoContratacion— y no siempre en los
+   dos a la vez, asi que basta con que uno de ellos lo diga. */
+const esBackupRad = (r: Rad) => diceBackup(r.negocio) || diceBackup(r.contratacion);
 
 /* ---------- traer los datos ---------- */
 async function traerAltas(): Promise<{ filas: Alta[]; actualizado: string }> {
@@ -194,7 +316,12 @@ async function traerAltas(): Promise<{ filas: Alta[]; actualizado: string }> {
   const json = await res.json();
   if (!json || json.ok === false) throw new Error(json?.message || "el archivo de altas vino vacío");
   const filas = Array.isArray(json) ? json : (json.data || []);
-  return { filas: filas.map(normalizarApi), actualizado: json.actualizado || "" };
+  /* Los equipos de respaldo se descartan aqui: de este punto en adelante,
+     el resto del reporte ni se entera de que existieron. */
+  return {
+    filas: filas.map(normalizarApi).filter((r: Alta) => !esBackup(r)),
+    actualizado: json.actualizado || "",
+  };
 }
 
 async function traerRadicaciones(): Promise<{ data: Rad[]; error: string }> {
@@ -215,7 +342,8 @@ async function traerRadicaciones(): Promise<{ data: Rad[]; error: string }> {
     const ahora = Date.now();
     const data = lista
       .filter((r: any) => r && typeof r === "object" && String(r.estado || "").trim().toLowerCase() === "en_proceso")
-      .map((r: any) => normalizarRad(r, ahora));
+      .map((r: any) => normalizarRad(r, ahora))
+      .filter((r: Rad) => !esBackupRad(r));
     return { data, error: "" };
   } catch (_e) {
     return { data: [], error: "sin conexión con la API de preofertas" };
@@ -242,6 +370,69 @@ const nombreDelMes = (ym: string) => {
   const [a, m] = ym.split("-"); return `${NOMBRE_MES[+m - 1]} de ${a}`;
 };
 const soloMes = (ym: string) => NOMBRE_MES[+ym.split("-")[1] - 1];
+const MES_ABR = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+
+/* ---------- el periodo pedido ----------
+   Un solo objeto describe QUE rango se pidio y COMO nombrarlo en los textos:
+     desde / hasta : las dos fechas, siempre presentes (AAAA-MM-DD)
+     larga         : "octubre de 2026" / "1 al 15 de octubre de 2026"
+     frase         : lo mismo pero listo para ir despues de un verbo
+                     ("registradas EN octubre de 2026" / "... DEL 1 al 15 de...")
+     corta         : para los titulos ("octubre" / "1 al 15 de octubre")
+     esMes         : si el rango es exactamente un mes completo           */
+interface Periodo {
+  desde: string; hasta: string;
+  larga: string; frase: string; corta: string;
+  esMes: boolean;
+}
+const ultimoDia = (ym: string) => {
+  const [a, m] = ym.split("-").map(Number);
+  const d = new Date(Date.UTC(a, m, 0)).getUTCDate();
+  return `${ym}-${String(d).padStart(2, "0")}`;
+};
+function periodoDeMes(ym: string): Periodo {
+  return {
+    desde: `${ym}-01`, hasta: ultimoDia(ym),
+    larga: nombreDelMes(ym), frase: `en ${nombreDelMes(ym)}`,
+    corta: soloMes(ym), esMes: true,
+  };
+}
+function periodoDeRango(desde: string, hasta: string): Periodo {
+  /* Un rango que cubre un mes entero se nombra como el mes: asi
+     "del 1 al 31 de octubre" y "octubre" no se leen como cosas distintas. */
+  const ym = desde.slice(0, 7);
+  if (desde === `${ym}-01` && hasta === ultimoDia(ym)) return periodoDeMes(ym);
+
+  const dD = String(+desde.slice(8, 10)), dH = String(+hasta.slice(8, 10));
+  const iD = +desde.slice(5, 7) - 1, iH = +hasta.slice(5, 7) - 1;
+  const aD = desde.slice(0, 4), aH = hasta.slice(0, 4);
+  let larga: string, frase: string, corta: string;
+  if (desde === hasta) {                    // un solo dia
+    larga = `${dD} de ${NOMBRE_MES[iD]} de ${aD}`;
+    frase = `el ${larga}`;
+    corta = `${dD} de ${NOMBRE_MES[iD]}`;
+  } else if (aD !== aH) {                   // cruza de anio
+    larga = `${dD} de ${NOMBRE_MES[iD]} de ${aD} al ${dH} de ${NOMBRE_MES[iH]} de ${aH}`;
+    frase = `del ${larga}`;
+    corta = `${dD} ${MES_ABR[iD]} ${aD} al ${dH} ${MES_ABR[iH]} ${aH}`;
+  } else if (iD !== iH) {                   // cruza de mes
+    larga = `${dD} de ${NOMBRE_MES[iD]} al ${dH} de ${NOMBRE_MES[iH]} de ${aH}`;
+    frase = `del ${larga}`;
+    corta = `${dD} ${MES_ABR[iD]} al ${dH} ${MES_ABR[iH]}`;
+  } else {                                  // dentro del mismo mes
+    larga = `${dD} al ${dH} de ${NOMBRE_MES[iD]} de ${aD}`;
+    frase = `del ${larga}`;
+    corta = `${dD} al ${dH} de ${NOMBRE_MES[iD]}`;
+  }
+  return { desde, hasta, larga, frase, corta, esMes: false };
+}
+
+/* Una fecha de verdad: 2026-02-31 tiene el formato bien pero no existe. */
+const esFecha = (s: string) => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+  const d = new Date(s + "T00:00:00Z");
+  return !isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s;
+};
 
 /* =====================================================================
    ARMAR EL HTML
@@ -249,14 +440,15 @@ const soloMes = (ym: string) => NOMBRE_MES[+ym.split("-")[1] - 1];
 interface Ejec {
   vendedor: string; jefe: string; total: number; nuevas: number; adiciones: number;
   unidades: number; uniNuevas: number; uniAdic: number;
-  sims: number; valor: number; clientes: Set<string>; filas: Alta[];
+  sims: number; valor: number; valNuevas: number; valAdic: number;
+  clientes: Set<string>; filas: Alta[];
 }
 
 function armarHtml(opts: {
-  pais: string; mes: string; altas: Alta[]; rads: Rad[]; radsOtros: Rad[];
+  pais: string; per: Periodo; altas: Alta[]; rads: Rad[]; radsOtros: Rad[];
   radError: string; actualizado: string;
 }): string {
-  const { pais, mes, altas, rads, radsOtros, radError, actualizado } = opts;
+  const { pais, per, altas, rads, radsOtros, radError, actualizado } = opts;
 
   /* --- cifras principales (mismas cuentas que indicadoresDatos) --- */
   const nAltas = altas.length;
@@ -277,13 +469,13 @@ function armarHtml(opts: {
     if (!e) {
       e = { vendedor: r.vendedor, jefe: r.jefe, total: 0, nuevas: 0, adiciones: 0,
             unidades: 0, uniNuevas: 0, uniAdic: 0, sims: 0, valor: 0,
-            clientes: new Set(), filas: [] };
+            valNuevas: 0, valAdic: 0, clientes: new Set(), filas: [] };
       porVend.set(r.vendedor, e);
     }
     e.total++; e.unidades += r.cantEquipo; e.sims += r.cantSim; e.valor += r.valor;
     e.clientes.add(r.codCliente);
-    if (r.tipoAlta === "NUEVA") { e.nuevas++; e.uniNuevas += r.cantEquipo; }
-    else { e.adiciones++; e.uniAdic += r.cantEquipo; }
+    if (r.tipoAlta === "NUEVA") { e.nuevas++; e.uniNuevas += r.cantEquipo; e.valNuevas += r.valor; }
+    else { e.adiciones++; e.uniAdic += r.cantEquipo; e.valAdic += r.valor; }
     e.filas.push(r);
   }
   const ejecutivos = [...porVend.values()].sort((a, b) => b.total - a.total);
@@ -294,7 +486,7 @@ function armarHtml(opts: {
 
   /* --- agrupar radicaciones por ejecutivo --- */
   const radPorVend = new Map<string, Rad[]>();
-  for (const r of rads) {
+  for (const r of [...rads, ...radsOtros]) {
     const l = radPorVend.get(r.vendedor) || []; l.push(r); radPorVend.set(r.vendedor, l);
   }
   const radGrupos = [...radPorVend.entries()].sort((a, b) => b[1].length - a[1].length);
@@ -317,17 +509,22 @@ function armarHtml(opts: {
       : g === "RENOVACION" ? pill("pr", "RENOVACIÓN")
       : pill("pr", esc(g || "—"));
 
-  /* Nota corta: cuáles de las que están en proceso vienen de meses anteriores.
-     Sí se cuentan (son las que siguen abiertas), pero conviene señalarlas:
-     son las que llevan más tiempo sin cerrarse. */
+  /* Nota corta: solicitudes abiertas de fuera del período. Solo aparece si
+     MOSTRAR_FUERA_DEL_PERIODO está activado; no suman a los indicadores. */
   const avisoOtros = (!hayRad || radsOtros.length === 0) ? "" : `
       <div style="margin-top:12px;border-left:4px solid #b45309;background:#fffbeb;border-radius:0 8px 8px 0;padding:10px 13px;color:#64748b;font-size:11px;line-height:1.5">
-        <b style="color:#b45309">${plural(radsOtros.length, "de estas solicitudes se radicó", "de estas solicitudes se radicaron")} en ${radsOtros.length === 1 ? "un mes anterior" : "meses anteriores"}</b>
-        y sigue${radsOtros.length === 1 ? "" : "n"} sin cerrarse. ${radsOtros.length === 1 ? "Está marcada" : "Están marcadas"} en la tabla con la etiqueta <b style="color:#b45309">MES ANTERIOR</b>.
+        <b style="color:#b45309">Además hay ${plural(radsOtros.length, "solicitud radicada", "solicitudes radicadas")} fuera del período</b>
+        que sigue${radsOtros.length === 1 ? "" : "n"} sin cerrarse. <b>No se suma${radsOtros.length === 1 ? "" : "n"} a los indicadores</b>, pero ${radsOtros.length === 1 ? "se lista" : "se listan"} en la tabla con la etiqueta <b style="color:#b45309">FUERA DEL PERÍODO</b>.
       </div>`;
 
   const nombrePais = PAISES[pais] || pais;
-  const mesCorto = soloMes(mes);
+  const mesCorto = per.corta;
+  /* Con un mes se lee bien «Radicadas en octubre»; con un rango, «en 1 al 15
+     de octubre» sonaría mal, así que ahí se separa con un punto. */
+  const enPer = per.esMes ? `en ${esc(per.corta)}` : `&middot; ${esc(per.corta)}`;
+  const dePer = per.esMes ? `de ${esc(per.corta)}` : `&middot; ${esc(per.corta)}`;
+  /* Una radicación queda «fuera del período» si se radicó antes o después. */
+  const fueraDelPer = (r: Rad) => r.fecha < per.desde || r.fecha > per.hasta;
 
   /* --- Gráfica de barras hecha con celdas de tabla ---------------------
      Nada de imágenes ni SVG: los correos los bloquean o los borran. Una celda
@@ -350,36 +547,90 @@ function armarHtml(opts: {
      tramos de color. Se usa para anexos y para unidades, así hay un solo lugar
      donde está el cómo se dibuja. */
   interface FilaG { nombre: string; segmentos: { n: number; color: string }[]; total: number; detalle: string; }
-  function graficaBarras(filas: FilaG[]): string {
+
+  /* Un circulito con las iniciales delante de cada nombre. Le da un ancla visual
+     a cada fila, que es lo que hace que una lista larga se lea como fichas y no
+     como un bloque de texto. Va en gris oscuro, igual que las bandas de las
+     tablas, para no competir con los colores de los datos.
+     En Outlook el circulo sale cuadrado: no pasa nada, se sigue leyendo. */
+  const iniciales = (n: string) =>
+    n.trim().split(/\s+/).slice(0, 2).map((x) => x.charAt(0)).join("").toUpperCase();
+  const avatar = (nombre: string) =>
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="28" style="border-collapse:collapse;width:28px;min-width:28px;table-layout:fixed"><tr>
+      <td width="28" height="28" bgcolor="#28374f" align="center" valign="middle" style="width:28px;min-width:28px;height:28px;background:#28374f;border-radius:50%;color:#ffffff;font-size:10px;font-weight:800;letter-spacing:.4px;text-align:center">${esc(iniciales(nombre))}</td>
+    </tr></table>`;
+
+  /* El porcentaje, en una pastilla tenue en vez de texto suelto: separa el peso
+     relativo del valor absoluto, que son dos lecturas distintas. */
+  const pastillaPct = (p: number) =>
+    `<span style="display:inline-block;background:#eef1f6;color:#64748b;border-radius:999px;padding:2px 7px;font-size:9px;font-weight:700">${p}%</span>`;
+
+  /* Cada gráfica vive en su propia tarjeta, las tres idénticas: fondo blanco,
+     borde suave y esquinas redondeadas. Antes la primera no tenía tarjeta y las
+     otras dos iban anidadas adentro, lo que se veía como una caja dentro de
+     otra. El borde va tenue a propósito: solo tiene que separar, no llamar la
+     atención. */
+  const tarjeta = (contenido: string, margenArriba = 14) => `
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;margin-top:${margenArriba}px">
+      <tr><td bgcolor="#ffffff" style="background:#ffffff;border:1px solid #e6ecf3;border-left:4px solid #28374f;border-radius:12px;padding:16px 18px">${contenido}</td></tr>
+    </table>`;
+
+  /* Encabezado de cada gráfica: una franja con su chip y su título. */
+  const encabezadoGrafica = (chip: string, titulo: string, bajada: string) => `
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;margin-bottom:12px">
+      <tr><td style="padding:0 0 9px;border-bottom:2px solid #e2e8f0">
+        <div style="margin:0 0 5px">${chipUnidad(chip)} <span style="vertical-align:middle;color:#0f172a;font-size:15px;font-weight:800">${titulo}</span></div>
+        <div style="color:#64748b;font-size:11px;line-height:1.45">${bajada}</div>
+      </td></tr>
+    </table>`;
+  function graficaBarras(filas: FilaG[], escribir: (n: number) => string = fmt): string {
     const max = Math.max(1, ...filas.map((f) => f.total));
     const suma = filas.reduce((t, f) => t + f.total, 0);
     const tick = "color:#94a3b8;font-size:10px;padding-top:4px";
-    const cuerpo = filas.map((f) => {
+    const cuerpo = filas.map((f, i) => {
       const ancho = Math.max(2, Math.round(f.total / max * 100));
       const pct = (n: number) => f.total ? Math.round(n / f.total * 100) : 0;
+      /* Rayado suave: una fila sí y una no, con el fondo apenas teñido. En las
+         filas teñidas la pista de la barra se oscurece un punto, si no el gris
+         de la pista se confundiría con el gris de la fila y la barra parecería
+         flotar sin su canal. */
+      const cebra = i % 2 === 1;
+      const fondoFila = cebra ? "#f7f9fc" : "#ffffff";
+      const fondoPista = cebra ? "#e7edf5" : "#f1f5f9";
       const vivos = f.segmentos.filter((x) => x.n > 0);
+      /* Entre tramo y tramo va una rendija de 2px del color del fondo. Es lo que
+         los separa: así se distinguen sin tener que dibujarles un borde, que
+         agregaría tinta que no es dato. */
       const tramos = vivos.map((x, k) => {
         const primero = k === 0, ultimo = k === vivos.length - 1;
         const radio = `border-radius:${primero ? "4px" : "0"} ${ultimo ? "4px" : "0"} ${ultimo ? "4px" : "0"} ${primero ? "4px" : "0"}`;
-        return `<td bgcolor="${x.color}" width="${pct(x.n)}%" style="background:${x.color};height:20px;line-height:20px;font-size:0;${radio}">&nbsp;</td>`;
+        const rendija = primero ? "" : `<td width="2" bgcolor="${fondoPista}" style="width:2px;background:${fondoPista};height:22px;line-height:22px;font-size:0">&nbsp;</td>`;
+        return `${rendija}<td bgcolor="${x.color}" width="${pct(x.n)}%" style="background:${x.color};height:22px;line-height:22px;font-size:0;${radio}">&nbsp;</td>`;
       }).join("");
       return `<tr>
-      <td style="padding:6px 12px 6px 0;color:#0f172a;font-size:11px;font-weight:700;white-space:nowrap;vertical-align:middle;text-align:right">${esc(f.nombre)}
-        <div style="color:#94a3b8;font-size:10px;font-weight:400;margin-top:1px">${f.detalle}</div></td>
-      <td width="100%" valign="middle" bgcolor="#f1f5f9" style="background:#f1f5f9;padding:0;border-left:2px solid #cbd5e1;border-radius:4px">
+      <td bgcolor="${fondoFila}" style="background:${fondoFila};padding:9px 12px 9px 10px;white-space:nowrap;vertical-align:middle;border-radius:8px 0 0 8px">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse"><tr>
+          <td width="28" valign="middle" style="width:28px;min-width:28px">${avatar(f.nombre)}</td>
+          <td valign="middle" style="padding-left:9px">
+            <div style="color:#0f172a;font-size:11px;font-weight:700;line-height:1.2">${esc(f.nombre)}</div>
+            <div style="color:#94a3b8;font-size:10px;font-weight:400;margin-top:2px;line-height:1.2">${f.detalle}</div>
+          </td>
+        </tr></table>
+      </td>
+      <td width="100%" valign="middle" bgcolor="${fondoPista}" style="background:${fondoPista};padding:0;border-left:2px solid #cbd5e1;border-radius:4px">
         <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="${ancho}%" style="border-collapse:collapse;width:${ancho}%"><tr>${tramos}</tr></table>
       </td>
-      <td align="right" valign="middle" style="padding:6px 0 6px 12px;color:#0f172a;font-size:15px;font-weight:900;white-space:nowrap">${fmt(f.total)}</td>
-      <td align="right" valign="middle" style="padding:6px 0 6px 8px;color:#94a3b8;font-size:10px;white-space:nowrap">${suma ? Math.round(f.total / suma * 100) : 0}%</td>
+      <td align="right" valign="middle" bgcolor="${fondoFila}" style="background:${fondoFila};padding:9px 0 9px 14px;color:#0f172a;font-size:16px;font-weight:900;white-space:nowrap">${escribir(f.total)}</td>
+      <td align="right" valign="middle" bgcolor="${fondoFila}" style="background:${fondoFila};padding:9px 10px 9px 9px;white-space:nowrap;border-radius:0 8px 8px 0">${pastillaPct(suma ? Math.round(f.total / suma * 100) : 0)}</td>
     </tr>
-    <tr><td colspan="4" style="height:6px;line-height:6px;font-size:0">&nbsp;</td></tr>`;
+    <tr><td colspan="4" style="height:4px;line-height:4px;font-size:0">&nbsp;</td></tr>`;
     }).join("");
     const eje = `<tr><td></td>
       <td style="border-top:1px solid #cbd5e1;padding:0">
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse"><tr>
           <td align="left" style="${tick}">0</td>
-          <td align="center" style="${tick}">${fmt(Math.round(max / 2))}</td>
-          <td align="right" style="${tick}">${fmt(max)}</td>
+          <td align="center" style="${tick}">${escribir(Math.round(max / 2))}</td>
+          <td align="right" style="${tick}">${escribir(max)}</td>
         </tr></table></td>
       <td colspan="2"></td></tr>`;
     return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse">${cuerpo}${eje}</table>`;
@@ -402,16 +653,19 @@ function armarHtml(opts: {
     const ancho = Math.floor(100 / Math.max(1, filas.length));
     const col = filas.map((f) => {
       const vivos = f.segmentos.filter((x) => x.n > 0);
-      const bloques = vivos.map((x, k) =>
-        `<tr><td bgcolor="${x.color}" height="${Math.max(3, Math.round(x.n / max * ALTO))}" style="background:${x.color};height:${Math.max(3, Math.round(x.n / max * ALTO))}px;line-height:1px;font-size:0;${k === 0 ? "border-radius:4px 4px 0 0" : ""}">&nbsp;</td></tr>`
-      ).reverse().join("");
+      const bloques = vivos.map((x, k) => {
+        const alto = Math.max(3, Math.round(x.n / max * ALTO));
+        const rendija = k === 0 ? "" : `<tr><td height="2" bgcolor="#ffffff" style="height:2px;background:#ffffff;line-height:1px;font-size:0">&nbsp;</td></tr>`;
+        return `<tr><td bgcolor="${x.color}" height="${alto}" style="background:${x.color};height:${alto}px;line-height:1px;font-size:0;${k === 0 ? "border-radius:4px 4px 0 0" : ""}">&nbsp;</td></tr>${rendija}`;
+      }).reverse().join("");
       return `<td valign="bottom" align="center" width="${ancho}%" style="padding:0 6px">
         <div style="color:#0f172a;font-size:15px;font-weight:900;margin-bottom:5px">${fmt(f.total)}</div>
         <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="46" style="border-collapse:collapse;width:46px;margin:0 auto">${bloques}</table>
       </td>`;
     }).join("");
-    const pies = filas.map((f) => `<td align="center" width="${ancho}%" style="padding:7px 4px 0;border-top:2px solid #cbd5e1">
-        <div style="color:#0f172a;font-size:11px;font-weight:700;line-height:1.25">${esc(f.nombre)}</div>
+    const pies = filas.map((f) => `<td align="center" width="${ancho}%" style="padding:9px 4px 0;border-top:2px solid #cbd5e1">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="border-collapse:collapse;margin:0 auto"><tr><td>${avatar(f.nombre)}</td></tr></table>
+        <div style="color:#0f172a;font-size:11px;font-weight:700;line-height:1.25;margin-top:6px">${esc(f.nombre)}</div>
         <div style="color:#94a3b8;font-size:10px;margin-top:2px;line-height:1.3">${f.detalle}</div>
       </td>`).join("");
     return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse">
@@ -436,32 +690,55 @@ function armarHtml(opts: {
     detalle: [f.nuevas ? `${fmt(f.nuevas)} nuevas` : "", f.adic ? `${fmt(f.adic)} adiciones` : ""].filter(Boolean).join("<br>"),
   })));
 
+  /* Valor de servicios por ejecutivo (la gráfica «REVENUE X TIPO DE ALTA» del
+     Excel de Activaciones). Allá está hecha de líneas; acá va de barras, como
+     las otras dos: comparar personas con una línea sugiere una secuencia entre
+     ellas que no existe. Los montos van redondeados, sin centavos: el dato
+     exacto ya está en la tabla de resumen. */
+  const monCorto = (n: number) =>
+    (MONEDA[pais] || "") + Math.round(n).toLocaleString("es-GT", { maximumFractionDigits: 0 });
+  const filasValor = ejecutivos
+    .filter((e) => e.valor > 0)
+    .map((e) => ({ vendedor: e.vendedor, nuevas: e.valNuevas, adic: e.valAdic, total: e.valor }))
+    .sort((a, b) => b.total - a.total);
+  const grafValor = !filasValor.length ? "" : graficaBarras(filasValor.map((f) => ({
+    nombre: nomVend(f.vendedor),
+    segmentos: [{ n: f.nuevas, color: "#15803d" }, { n: f.adic, color: "#1d4ed8" }],
+    total: f.total,
+    detalle: [f.nuevas ? `${monCorto(f.nuevas)} nuevas` : "", f.adic ? `${monCorto(f.adic)} adiciones` : ""]
+      .filter(Boolean).join(" &middot; "),
+  })), monCorto);
+
+  /* Un chip por gráfica, diciendo en qué unidad está medida. Las tres se
+     parecen a propósito —mismos colores, mismo dibujo— porque los colores
+     significan lo mismo en todas: verde nuevas, azul adiciones. Lo que cambia
+     de una a otra es la unidad, y eso es lo que el chip nombra. Va en gris
+     oscuro, nunca en los colores de las series, para que no se confunda con
+     un dato más. */
+  const chipUnidad = (texto: string) =>
+    `<span style="display:inline-block;border-radius:999px;background:#28374f;color:#ffffff;padding:4px 11px;font-size:9px;font-weight:800;letter-spacing:.7px;text-transform:uppercase;vertical-align:middle">${texto}</span>`;
+  const MONEDA_NOMBRE: Record<string, string> = { GT: "quetzales", SV: "d\u00f3lares" };
+
   const pNuevasTot = nAltas ? Math.round(nuevas / nAltas * 100) : 0;
   const cuadro = (c: string) => `<span style="display:inline-block;width:9px;height:9px;background:${c};border-radius:2px"></span>`;
   const leyenda = `${cuadro("#15803d")} nuevas &nbsp;&nbsp;${cuadro("#1d4ed8")} adiciones${hayRad ? ` &nbsp;&nbsp;${cuadro("#b45309")} en proceso` : ""}`;
   const bloqueGraficas = (!nAltas && !nRad) ? "" : `
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;margin-top:16px"><tr>
-    <td style="border:1px solid #e2e8f0;border-radius:10px;padding:14px">
-      <h2 style="margin:0;color:#0f172a;font-size:15px">Anexos por ejecutivo</h2>
-      <p style="margin:5px 0 12px;color:#64748b;font-size:11px;line-height:1.45">Cada alta es un anexo. La barra es todo lo radicado por esa persona.<br>${leyenda}</p>
-      ${grafAnexos}
+  ${tarjeta(`${encabezadoGrafica("anexos", "Anexos por ejecutivo", `Cada alta es un anexo. La barra es todo lo radicado por esa persona.<br>${leyenda}`)}
+      ${grafAnexos}`, 16)}
 
-      <div style="margin-top:18px;background:#f8fafc;border:1px solid #eef2f7;border-radius:10px;padding:14px">
-        <h2 style="margin:0;color:#0f172a;font-size:15px">Unidades por ejecutivo</h2>
-        <p style="margin:5px 0 12px;color:#64748b;font-size:11px;line-height:1.45">Equipos ya entregados, no anexos: un solo anexo puede llevar varios equipos. No incluye lo que sigue en proceso.<br>${cuadro("#15803d")} nuevas &nbsp;&nbsp;${cuadro("#1d4ed8")} adiciones</p>
-        ${grafUnidades}
-      </div>
+  ${tarjeta(`${encabezadoGrafica("equipos", "Unidades por ejecutivo", `Equipos ya entregados, no anexos: un solo anexo puede llevar varios equipos. No incluye lo que sigue en proceso.<br>${cuadro("#15803d")} nuevas &nbsp;&nbsp;${cuadro("#1d4ed8")} adiciones`)}
+      ${grafUnidades}`)}
 
-      ${!nAltas ? "" : `<div style="margin-top:18px;padding-top:14px;border-top:1px solid #e2e8f0">
-        <h2 style="margin:0 0 8px;color:#0f172a;font-size:15px">Nuevas frente a adiciones</h2>
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse"><tr>
-          ${nuevas ? `<td bgcolor="#15803d" width="${pNuevasTot}%" style="background:#15803d;height:26px;line-height:26px;color:#fff;font-size:11px;font-weight:800;text-align:center">${pNuevasTot}%</td>` : ""}
-          ${adiciones ? `<td bgcolor="#1d4ed8" width="${100 - pNuevasTot}%" style="background:#1d4ed8;height:26px;line-height:26px;color:#fff;font-size:11px;font-weight:800;text-align:center">${100 - pNuevasTot}%</td>` : ""}
-        </tr></table>
-        <p style="margin:7px 0 0;color:#64748b;font-size:11px">${fmt(nuevas)} de clientes nuevos &middot; ${fmt(adiciones)} de clientes que ya teníamos</p>
-      </div>`}
-    </td>
-  </tr></table>
+  ${!grafValor ? "" : tarjeta(`${encabezadoGrafica(MONEDA_NOMBRE[pais] || "valor", "Valor de servicios por ejecutivo", `Valor total de los servicios de las altas registradas. Los montos van redondeados; el detalle con centavos está en la tabla de resumen.<br>${cuadro("#15803d")} nuevas &nbsp;&nbsp;${cuadro("#1d4ed8")} adiciones`)}
+      ${grafValor}`)}
+
+  ${!nAltas ? "" : tarjeta(`${encabezadoGrafica("reparto", "Nuevas frente a adiciones", "Qu&eacute; parte de las altas vino de clientes que no ten&iacute;amos y qu&eacute; parte se le sum&oacute; a clientes que ya eran nuestros.")}
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse"><tr>
+        ${nuevas ? `<td bgcolor="#15803d" width="${pNuevasTot}%" style="background:#15803d;height:28px;line-height:28px;color:#fff;font-size:11px;font-weight:800;text-align:center;border-radius:${adiciones ? "6px 0 0 6px" : "6px"}">${pNuevasTot}%</td>` : ""}
+        ${nuevas && adiciones ? `<td width="2" bgcolor="#ffffff" style="width:2px;background:#ffffff;height:28px;line-height:28px;font-size:0">&nbsp;</td>` : ""}
+        ${adiciones ? `<td bgcolor="#1d4ed8" width="${100 - pNuevasTot}%" style="background:#1d4ed8;height:28px;line-height:28px;color:#fff;font-size:11px;font-weight:800;text-align:center;border-radius:${nuevas ? "0 6px 6px 0" : "6px"}">${100 - pNuevasTot}%</td>` : ""}
+      </tr></table>
+      <p style="margin:8px 0 0;color:#64748b;font-size:11px">${fmt(nuevas)} de clientes nuevos &middot; ${fmt(adiciones)} de clientes que ya ten&iacute;amos</p>`)}
 `;
 
   /* --- Tabla 1: resumen por ejecutivo (equivale a su hoja RESUMEN ALTAS) --- */
@@ -538,19 +815,20 @@ function armarHtml(opts: {
 
   /* --- filas de la tabla de radicaciones --- */
   const filasRad = radGrupos.map(([v, lista]) => {
-    const cab = `<tr><td colspan="7" class="g gr" bgcolor="#8a7448" style="background:#8a7448;padding:11px 12px">
+    const cab = `<tr><td colspan="6" class="g gr" bgcolor="#8a7448" style="background:#8a7448;padding:11px 12px">
       <span class="gn" style="display:inline-block;border-radius:999px;background:#28374f;color:#ffffff;padding:7px 14px;font-size:12px;font-weight:800;letter-spacing:.2px">&#128100; ${esc(nomVend(v))} &middot; ${esc(v)}</span>
-      <span class="gs" style="color:#ead9bc;font-size:11px;font-weight:600;padding-left:10px">${plural(lista.length, "radicación", "radicaciones")} en curso</span>
+      <span class="gs" style="color:#ead9bc;font-size:11px;font-weight:600;padding-left:10px">${plural(lista.length, "radicación", "radicaciones")} en curso${(() => {
+        const fuera = lista.filter(fueraDelPer).length;
+        return fuera ? ` &middot; ${fmt(fuera)} de fuera del período` : "";
+      })()}</span>
     </td></tr>`;
     const cuerpo = lista.sort((a, b) => (b.diasDesde ?? 0) - (a.diasDesde ?? 0)).map((r, i) => `<tr${i % 2 ? ' class="z"' : ""}>
       <td ${TDb}>${esc(r.preOferta || "—")}</td>
-      <td ${TD}>${fechaCorta(r.fecha)}${r.mes !== mes ? " " + pill("pm", "MES ANTERIOR") : ""}</td>
+      <td ${TD}>${fechaCorta(r.fecha)}${fueraDelPer(r) ? " " + pill("pm", "FUERA DEL PERÍODO") : ""}</td>
       <td ${TD}>${esc(r.codigo || "—")}</td>
       <td ${TD}>${esc(empresaRad(r))}</td>
       <td class="d">${negocioPill(negocioRad(r))}</td>
       <td align="right" ${TD}>${r.cantidad == null ? "—" : fmt(r.cantidad)}</td>
-      <td ${TD}>${esc(r.etapaNombre || "—")}${r.vencida === true ? " " + pill("pv", "VENCIDA") : ""}
-        <div style="color:#94a3b8;font-size:10px;margin-top:2px">${r.diasDesde == null ? "" : plural(r.diasDesde, "día", "días") + " desde la radicación"}</div></td>
     </tr>`).join("");
     return cab + cuerpo;
   }).join("");
@@ -564,19 +842,17 @@ function armarHtml(opts: {
           <th align="left" class="h" style="min-width:300px">EMPRESA</th>
           <th align="left" ${TH}>TIPO DE NEGOCIO</th>
           <th align="right" ${TH}>CANTIDAD</th>
-          <th align="left" ${TH}>ETAPA ACTUAL</th>
         </tr></thead>
-        <tbody>${filasRad || `<tr><td colspan="7" style="padding:14px;color:#64748b;font-size:11px">No hay radicaciones en curso en ${esc(nombrePais)}.</td></tr>`}
-          <tr><td colspan="5" ${TOT}>TOTAL EN CURSO &middot; ${esc(nombrePais)}</td>
-              <td align="right" ${TOT}>${fmt(rads.reduce((s, r) => s + (r.cantidad ?? 0), 0))}</td>
-              <td style="padding:9px 8px;background:#1e293b;color:#cbd5e1;font-size:11px">${plural(nRad, "radicación", "radicaciones")}</td></tr>
+        <tbody>${filasRad || `<tr><td colspan="6" style="padding:14px;color:#64748b;font-size:11px">No hay radicaciones en curso en ${esc(nombrePais)}.</td></tr>`}
+          <tr><td colspan="5" ${TOT}>TOTAL EN CURSO &middot; ${esc(nombrePais)} &middot; <span style="font-weight:600;color:#cbd5e1">${plural(nRad, "radicación", "radicaciones")}${radsOtros.length ? ` <span style="color:#fbbf24">(${fmt(radsOtros.length)} de fuera del período)</span>` : ""}</span></td>
+              <td align="right" ${TOT}>${fmt(rads.reduce((s, r) => s + (r.cantidad ?? 0), 0))}</td></tr>
         </tbody></table>`
     : `<div style="border:1px solid #fecaca;background:#fef2f2;border-radius:8px;padding:12px;color:#b91c1c;font-size:11px">
          No se pudieron consultar las radicaciones en curso: ${esc(radError)}. Las cifras de altas sí son correctas.</div>`;
 
   return `<!doctype html>
 <html lang="es"><head><meta charset="utf-8"><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Reporte semanal de altas · ${esc(nombrePais)}</title>
+<title>Reporte de altas · ${esc(nombrePais)} · ${esc(per.larga)}</title>
 <style>
 /* Encabezado de columnas: oscuro, como la hoja de Excel de Activaciones */
 .h{background:#0f172a;color:#cbd5e1;padding:9px 8px;font-size:9px;letter-spacing:.4px;border-right:1px solid #1e293b}
@@ -615,9 +891,9 @@ function armarHtml(opts: {
       </td>
       <td align="center" valign="middle" style="padding:0 10px;">
         <div style="margin:0;color:#ffffff;font-size:24px;line-height:1.15;font-weight:900;letter-spacing:-0.3px;">
-          Reporte semanal de altas &middot; ${esc(nombrePais)} &middot; ${radicadas == null ? plural(nAltas, "alta", "altas") : fmt(radicadas) + " radicadas"} en ${esc(mesCorto)}
+          Reporte de altas &middot; ${esc(nombrePais)} &middot; ${radicadas == null ? plural(nAltas, "alta", "altas") : fmt(radicadas) + " radicadas"} ${enPer}
         </div>
-        <div style="margin-top:6px;color:#e0e7ff;font-size:11px;line-height:1.35;">Red Intelfon — Ventas &middot; Flash de Altas &middot; ${esc(nombreDelMes(mes))}</div>
+        <div style="margin-top:6px;color:#e0e7ff;font-size:11px;line-height:1.35;">Red Intelfon — Ventas &middot; Flash de Altas &middot; ${esc(per.larga)}</div>
       </td>
       <td width="60" align="right" valign="middle" style="width:60px">
         <img src="${LOGOS}/bandera-${esc(pais.toLowerCase())}.png" alt="${esc(pais)}" width="38" height="38" style="display:block;width:38px;height:38px;border:0;outline:none;text-decoration:none;margin-left:auto">
@@ -633,17 +909,18 @@ function armarHtml(opts: {
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse">
 <tr><td style="background:#ffffff;padding:22px 24px;border:1px solid #e2e8f0;border-top:0;border-radius:0 0 10px 10px">
 
+  <!--AVISO_PESO-->
   <p style="margin:0 0 10px;color:#334155;font-size:14px">Hola,</p>
   <p style="margin:0 0 16px;color:#475569;font-size:12px;line-height:1.55">
-    Este es el reporte semanal de <strong>altas de ${esc(nombrePais)} del mes en curso</strong>. Incluye las altas ya registradas en ${esc(nombreDelMes(mes))} y las radicaciones que siguen en curso en Workflow.
+    Este es el reporte de <strong>altas de ${esc(nombrePais)}</strong>. Incluye las altas ya registradas ${esc(per.frase)} y las radicaciones que siguen en curso en Workflow.
   </p>
 
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;margin-bottom:16px"><tr>
     <td style="border:1px solid #bfdbfe;background:#eff6ff;background-image:linear-gradient(135deg,#eff6ff,#eef2ff);border-radius:10px;padding:14px 16px">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse"><tr>
         <td valign="middle">
-          <div style="color:#1d4ed8;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.55px">Radicadas en ${esc(mesCorto)}</div>
-          <div style="margin-top:5px;color:#475569;font-size:11px;line-height:1.4">${plural(nAltas, "alta registrada", "altas registradas")}${hayRad ? ` + ${plural(nRad, "radicación en curso", "radicaciones en curso")} en Workflow${radsOtros.length ? ` (${fmt(radsOtros.length)} de ${radsOtros.length === 1 ? "un mes anterior" : "meses anteriores"})` : ""}` : ""}</div>
+          <div style="color:#1d4ed8;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.55px">Radicadas ${enPer}</div>
+          <div style="margin-top:5px;color:#475569;font-size:11px;line-height:1.4">${plural(nAltas, "alta registrada", "altas registradas")}${hayRad ? ` + ${plural(nRad, "radicación en curso", "radicaciones en curso")} en Workflow${radsOtros.length ? ` &middot; no incluye ${fmt(radsOtros.length)} de fuera del período` : ""}` : ""}</div>
           <div style="margin-top:3px;color:#64748b;font-size:10px">Todo lo que entró, sin importar si ya se resolvió o sigue en trámite.</div>
         </td>
         <td align="right" valign="middle" width="125" style="width:125px">
@@ -656,14 +933,14 @@ function armarHtml(opts: {
 
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;margin-bottom:16px"><tr>
     <td style="border:1px solid #dbeafe;background:#eff6ff;border-radius:8px;padding:11px 13px">
-      <p style="margin:0;color:#1e40af;font-size:11px;line-height:1.55"><strong>Cómo leer el reporte:</strong> <strong>altas</strong> son las que ya quedaron registradas en el mes, separadas en nuevas (cliente que no teníamos) y adiciones (lo que se le suma a un cliente existente); <strong>en proceso</strong> son las solicitudes radicadas en ese mismo mes que siguen avanzando en Workflow y todavía no se resuelven, e incluyen ventas nuevas, adiciones y renovaciones; <strong>radicadas</strong> es la suma de las dos, es decir todo lo que entró en el mes. Si quedan solicitudes de meses anteriores sin resolver, se avisan aparte al final.</p>
+      <p style="margin:0;color:#1e40af;font-size:11px;line-height:1.55"><strong>Cómo leer el reporte:</strong> <strong>altas</strong> son las que ya quedaron registradas en el período consultado, separadas en nuevas (cliente que no teníamos) y adiciones (lo que se le suma a un cliente existente); <strong>en proceso</strong> son las solicitudes radicadas dentro del mismo período que siguen abiertas en Workflow y todavía no quedaron registradas como alta en SAN, e incluyen ventas nuevas, adiciones y renovaciones; <strong>radicadas</strong> es la suma de las dos, es decir todo lo que entró en el período.</p>
     </td>
   </tr></table>
 
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;margin-bottom:14px"><tr>
     <td width="33%" valign="top" style="padding:0 4px 8px 0">
       <div style="min-height:70px;border:1px solid #dbeafe;border-left:4px solid #1d4ed8;background:#dbeafe;border-radius:8px;padding:11px">
-        <div style="color:#1d4ed8;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.4px">Altas de ${esc(mesCorto)}</div>
+        <div style="color:#1d4ed8;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.4px">Altas ${dePer}</div>
         <div style="margin-top:4px;color:#0f172a;font-size:23px;line-height:1.15;font-weight:800">${fmt(nAltas)}</div>
         <div style="margin-top:4px;color:#64748b;font-size:10px">${fmt(nuevas)} nuevas &middot; ${fmt(adiciones)} adiciones</div>
       </div></td>
@@ -671,7 +948,7 @@ function armarHtml(opts: {
       <div style="min-height:70px;border:1px solid #fef3c7;border-left:4px solid #b45309;background:#fef3c7;border-radius:8px;padding:11px">
         <div style="color:#b45309;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.4px">En proceso</div>
         <div style="margin-top:4px;color:#0f172a;font-size:23px;line-height:1.15;font-weight:800">${hayRad ? fmt(nRad) : "—"}</div>
-        <div style="margin-top:4px;color:#64748b;font-size:10px">${hayRad ? (radsOtros.length ? `en curso en Workflow &middot; ${plural(radsOtros.length, "de otro mes", "de otros meses")}` : "en curso en Workflow &middot; al día de hoy") : esc(radError)}</div>
+        <div style="margin-top:4px;color:#64748b;font-size:10px">${hayRad ? (radsOtros.length ? `en curso en Workflow<br><b style="color:#b45309">+ ${fmt(radsOtros.length)} de fuera, sin sumar</b>` : "en curso en Workflow &middot; al día de hoy") : esc(radError)}</div>
       </div></td>
     <td width="33%" valign="top" style="padding:0 0 8px 4px">
       <div style="min-height:70px;border:1px solid #dcfce7;border-left:4px solid #15803d;background:#dcfce7;border-radius:8px;padding:11px">
@@ -701,8 +978,8 @@ function armarHtml(opts: {
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;margin-top:16px"><tr>
     <td style="border:1px solid #e2e8f0;border-radius:10px;padding:14px">
       <div style="margin:0 0 9px"><span style="display:inline-block;padding:6px 10px;border:1px solid #3b82f6;border-radius:999px;background:#dbeafe;color:#1d4ed8;font-size:10px;font-weight:900;letter-spacing:.55px;text-transform:uppercase">Altas</span></div>
-      <h2 style="margin:0;color:#0f172a;font-size:15px">Resumen por ejecutivo &middot; ${plural(nAltas, "alta", "altas")} en ${esc(mesCorto)}</h2>
-      <p style="margin:5px 0 12px;color:#64748b;font-size:11px;line-height:1.45">Altas de ${esc(nombrePais)} registradas en ${esc(nombreDelMes(mes))}, por ejecutivo. Se muestran por separado las NUEVAS y las ADICIONES.</p>
+      <h2 style="margin:0;color:#0f172a;font-size:15px">Resumen por ejecutivo &middot; ${plural(nAltas, "alta", "altas")} ${enPer}</h2>
+      <p style="margin:5px 0 12px;color:#64748b;font-size:11px;line-height:1.45">Altas de ${esc(nombrePais)} registradas ${esc(per.frase)}, por ejecutivo. Se muestran por separado las NUEVAS y las ADICIONES.</p>
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;border:1px solid #cbd5e1;margin-bottom:18px">
         <thead><tr>
           <th align="left" class="h" style="min-width:160px">EJECUTIVO</th>
@@ -716,7 +993,7 @@ function armarHtml(opts: {
           <th align="right" ${TH}>VALOR SERVICIOS</th>
           <th align="right" ${TH}>%</th>
         </tr></thead>
-        <tbody>${filasResumen || `<tr><td colspan="10" style="padding:14px;color:#64748b;font-size:11px">No hay altas registradas en ${esc(nombrePais)} en ${esc(nombreDelMes(mes))}.</td></tr>`}
+        <tbody>${filasResumen || `<tr><td colspan="10" style="padding:14px;color:#64748b;font-size:11px">No hay altas registradas en ${esc(nombrePais)} ${esc(per.frase)}.</td></tr>`}
           <tr><td colspan="2" ${TOT}>TOTAL ${esc(nombrePais.toUpperCase())}</td>
               <td align="right" ${TOT}>${fmt(nuevas)}</td>
               <td align="right" ${TOT}>${fmt(adiciones)}</td>
@@ -729,7 +1006,7 @@ function armarHtml(opts: {
         </tbody></table>
 
       <h2 style="margin:0;color:#0f172a;font-size:15px">Detalle de altas &middot; una fila por anexo</h2>
-      <p style="margin:5px 0 12px;color:#64748b;font-size:11px;line-height:1.45">Los ${fmt(nAltas)} anexos del mes, agrupados por ejecutivo y por cliente. Cuando varios anexos del mismo cliente comparten fecha, equipo y precio, se muestran en una sola fila con sus números listados y los montos sumados.</p>
+      <p style="margin:5px 0 12px;color:#64748b;font-size:11px;line-height:1.45">Los ${fmt(nAltas)} anexos del período, agrupados por ejecutivo y por cliente. Cuando varios anexos del mismo cliente comparten fecha, equipo y precio, se muestran en una sola fila con sus números listados y los montos sumados.</p>
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;border:1px solid #cbd5e1">
         <thead><tr>
           <th align="left" ${TH}>ANEXO</th>
@@ -742,7 +1019,7 @@ function armarHtml(opts: {
           <th align="right" ${TH}>VALOR</th>
           <th align="right" ${TH}>MESES</th>
         </tr></thead>
-        <tbody>${filasAltas || `<tr><td colspan="9" style="padding:14px;color:#64748b;font-size:11px">No hay altas registradas en ${esc(nombrePais)} en ${esc(nombreDelMes(mes))}.</td></tr>`}
+        <tbody>${filasAltas || `<tr><td colspan="9" style="padding:14px;color:#64748b;font-size:11px">No hay altas registradas en ${esc(nombrePais)} ${esc(per.frase)}.</td></tr>`}
           <tr><td colspan="6" ${TOT}>TOTAL ${esc(nombrePais.toUpperCase())} &middot; ${esc(mesCorto)}</td>
               <td align="right" ${TOT}>${fmt(unidades)}</td>
               <td align="right" ${TOT}>${esc(fmtMon(valorTotal, pais))}</td>
@@ -755,7 +1032,7 @@ function armarHtml(opts: {
     <td style="border:1px solid #e2e8f0;border-radius:10px;padding:14px">
       <div style="margin:0 0 9px"><span style="display:inline-block;padding:6px 10px;border:1px solid #f59e0b;border-radius:999px;background:#fef3c7;color:#b45309;font-size:10px;font-weight:900;letter-spacing:.55px;text-transform:uppercase">En proceso</span></div>
       <h2 style="margin:0;color:#0f172a;font-size:15px">Detalle de radicaciones en curso${hayRad ? ` &middot; ${fmt(nRad)} ${nRad === 1 ? "actual" : "actuales"}` : ""}</h2>
-      <p style="margin:5px 0 12px;color:#64748b;font-size:11px;line-height:1.45">Solicitudes de ${esc(nombrePais)} radicadas en ${esc(nombreDelMes(mes))} que siguen avanzando en Workflow y todavía no se resuelven, agrupadas por ejecutivo.</p>
+      <p style="margin:5px 0 12px;color:#64748b;font-size:11px;line-height:1.45">Solicitudes de ${esc(nombrePais)} radicadas ${esc(per.frase)} que siguen abiertas en Workflow y todavía no quedaron registradas como alta, agrupadas por ejecutivo.</p>
       ${bloqueRad}
       ${avisoOtros}
     </td>
@@ -775,10 +1052,17 @@ function armarHtml(opts: {
 /* =====================================================================
    SERVIDOR
    ===================================================================== */
+/* Las radicaciones abiertas de fuera del período pedido:
+     false -> no aparecen (regla actual)
+     true  -> aparecen en la tabla marcadas, sin sumar a los indicadores */
+const MOSTRAR_FUERA_DEL_PERIODO = false;
+
 Deno.serve(async (req) => {
   const url = new URL(req.url);
   const pais = (url.searchParams.get("pais") || "").trim().toUpperCase();
-  const mes = (url.searchParams.get("mes") || "").trim() || mesEnCurso();
+  const qMes = (url.searchParams.get("mes") || "").trim();
+  const qDesde = (url.searchParams.get("desde") || "").trim();
+  const qHasta = (url.searchParams.get("hasta") || "").trim();
 
   if (req.method === "OPTIONS") {
     return new Response("ok", {
@@ -811,24 +1095,53 @@ Deno.serve(async (req) => {
        <h2>Falta indicar el país</h2>
        <p>Agregá <code>?pais=GT</code> o <code>?pais=SV</code> al final de la dirección.</p></body></html>`, 400);
   }
-  if (!/^\d{4}-\d{2}$/.test(mes)) {
-    return htmlResp(
-      `<!doctype html><html lang="es"><head><meta charset="utf-8"></head>
-       <body style="font-family:Arial;padding:24px;color:#b91c1c">
-       <h2>El mes está mal escrito</h2><p>Se escribe así: <code>&amp;mes=2026-10</code></p></body></html>`, 400);
+  /* --- qué período se pidió ------------------------------------------
+     O un rango (desde + hasta) o un mes. Si no viene nada, el mes en curso.
+     De aquí en adelante solo existe el rango: el mes ya quedó traducido. */
+  let per: Periodo;
+  if (qDesde || qHasta) {
+    if (!qDesde || !qHasta) {
+      return errorHtml("Falta una de las dos fechas",
+        "El rango se pide con las dos: <code>&amp;desde=2026-10-01&amp;hasta=2026-10-15</code>.");
+    }
+    if (!esFecha(qDesde) || !esFecha(qHasta)) {
+      return errorHtml("Las fechas están mal escritas",
+        "Se escriben así: <code>&amp;desde=2026-10-01&amp;hasta=2026-10-15</code> (año-mes-día, y el día tiene que existir).");
+    }
+    if (qDesde > qHasta) {
+      return errorHtml("El rango está al revés",
+        `La fecha <code>desde</code> (${esc(qDesde)}) no puede ser posterior a <code>hasta</code> (${esc(qHasta)}).`);
+    }
+    per = periodoDeRango(qDesde, qHasta);
+  } else {
+    const mes = qMes || mesEnCurso();
+    const m = +mes.slice(5, 7);
+    if (!/^\d{4}-\d{2}$/.test(mes) || m < 1 || m > 12) {
+      return errorHtml("El mes está mal escrito", "Se escribe así: <code>&amp;mes=2026-10</code>");
+    }
+    per = periodoDeMes(mes);
   }
 
   try {
     const [altasRes, radRes] = await Promise.all([traerAltas(), traerRadicaciones()]);
-    const altas = altasRes.filas.filter((r) => r.pais === pais && r.mes === mes);
-    // TODAS las que siguen abiertas en ese país entran en la cuenta, sean del
-    // mes pedido o de antes: así el número coincide con lo que dice Workflow.
-    // radsOtros son solo las de otros meses, para poder señalarlas aparte.
-    const rads = radRes.data.filter((r) => r.pais === pais);
-    const radsOtros = rads.filter((r) => r.mes !== mes);
-    return htmlResp(armarHtml({
-      pais, mes, altas, rads, radsOtros, radError: radRes.error, actualizado: altasRes.actualizado,
-    }));
+    const altas = altasRes.filas.filter((r) =>
+      r.pais === pais && r.fecha >= per.desde && r.fecha <= per.hasta);
+    /* Una radicación cuenta como «en proceso» si cumple las dos cosas:
+         1. se radicó DENTRO del período pedido, y
+         2. todavía NO tiene marcado el checklist B800.
+       Lo segundo es lo que la saca de la cuenta cuando ya quedó registrada
+       como alta en SAN, aunque en el workflow siga apareciendo en proceso. */
+    const abiertas = radRes.data.filter((r) => r.pais === pais && !yaEsAlta(r));
+    const rads = abiertas.filter((r) => r.fecha >= per.desde && r.fecha <= per.hasta);
+    /* Las abiertas de fuera del período no se muestran ni se cuentan.
+       Poner MOSTRAR_FUERA_DEL_PERIODO en true las lista en la tabla con su
+       etiqueta, sin sumarlas a los indicadores. */
+    const radsOtros = MOSTRAR_FUERA_DEL_PERIODO
+      ? abiertas.filter((r) => r.fecha < per.desde || r.fecha > per.hasta)
+      : [];
+    return htmlResp(avisarSiPesa(armarHtml({
+      pais, per, altas, rads, radsOtros, radError: radRes.error, actualizado: altasRes.actualizado,
+    })));
   } catch (e) {
     return htmlResp(
       `<!doctype html><html lang="es"><head><meta charset="utf-8"></head>
