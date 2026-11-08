@@ -1,6 +1,6 @@
 # Dashboard Flash de Altas
 
-Proyecto que alimenta el **dashboard de Flash de Altas** y el **reporte semanal por correo** de RED Intelfon (Ventas).
+Proyecto que alimenta el **dashboard de Flash de Altas** y el **reporte por correo** de RED Intelfon (Ventas).
 
 Muestra las altas registradas por país y ejecutivo, y las solicitudes que siguen en proceso sin resolverse.
 
@@ -71,7 +71,9 @@ El workflow de Activaciones llama a la función con su llave
    → Activaciones lo manda por correo
 ```
 
-El correo sale **los viernes a las 6:00 p. m.** Los detalles están en el README de la función.
+Activaciones puede pedir **el mes en curso, un mes completo o un rango de
+fechas**, y muestra una vista previa antes de enviar. El detalle está en el
+README de la función y en la guía de integración que se les entregó.
 
 ---
 
@@ -137,6 +139,8 @@ Abrilo siempre con **Ctrl + Shift + R**. Si no, el navegador te muestra la versi
 
 Aunque lo abras desde tu computadora, el dashboard lee el `datos.json` **publicado**, no el de tu carpeta. Para probar con datos locales hay que cambiarle la dirección a mano en `CONFIG.API_URL`.
 
+**No lo abras con doble clic.** Si en la barra del navegador aparece `file:///C:/...`, el navegador trata la página como un archivo suelto sin dirección propia y bloquea las llamadas a las APIs. Tiene que entrar por `http://localhost:5500/`.
+
 ## Cómo probar la función del reporte
 
 Con Postman: método `GET`, la dirección del reporte, y en **Headers** una fila con `x-api-key` y la llave. La pestaña **Preview** de la respuesta lo muestra dibujado.
@@ -178,11 +182,17 @@ Desde el navegador no se ve bien: Supabase no deja que sus funciones se muestren
 
 **Cambiar el diseño o el contenido del correo** → solo la función del reporte. Activaciones no tiene que tocar nada: el correo siguiente sale con el formato nuevo.
 
+**Cambiar una regla de conteo** (qué cuenta como alta, qué cuenta como en proceso, qué se excluye) → hay que tocar **los dos lados**: la función del reporte y el HTML del dashboard. Las reglas completas están escritas en el README de la función, en la sección «Las reglas de conteo». Conviene partir de ahí y no de leer el código.
+
 ---
 
 ## Cosas que conviene saber antes de tocar
 
-**Las cuentas están escritas dos veces.** La pantalla y el reporte calculan lo mismo, pero cada uno con su propia copia del código. **Si cambiás una regla en uno, cambiala en el otro**, o el correo y la pantalla van a decir cosas distintas. Las funciones son `normalizar`, `filtrados`, `indicadoresDatos`, `normalizarRad` y `radFiltradas`.
+**Las cuentas están escritas dos veces.** La pantalla y el reporte calculan lo mismo, pero cada uno con su propia copia del código, en repositorios distintos y en lenguajes distintos. **Si cambiás una regla en uno, cambiala en el otro**, o el correo y la pantalla van a decir cosas distintas sin que nadie lo note.
+
+Las reglas vigentes están escritas en un solo lugar: el README de la función, sección **«Las reglas de conteo»**. Ahí está qué cuenta como alta, qué cuenta como en proceso, por qué se excluyen los equipos BACKUP y cómo funciona el checklist B800.
+
+Ha pasado que las dos copias se desalinearan sin que se notara. Antes de dar por buena una cifra, conviene consultar el mismo período en la pantalla y en el correo y verificar que coincidan.
 
 **`docs/datos.json` es público** porque el navegador lo lee directo, y un navegador solo puede leer archivos públicos. Para que deje de serlo habría que poner un servidor en medio que le sirva los datos al dashboard.
 
@@ -191,6 +201,10 @@ Desde el navegador no se ve bien: Supabase no deja que sus funciones se muestren
 **`docs/index.html` quedó desactualizada.** Es una copia del dashboard de hace semanas, de cuando Flash se publicaba por separado. El dashboard bueno es el del centralizado. No se mantiene esta copia.
 
 **Las renovaciones no están.** La API de Flash solo devuelve `NUEVA` y `ADICION`. Las renovaciones en proceso sí aparecen, porque vienen de Workflow, pero las ya completadas no se ven en ningún lado de este proyecto.
+
+**Los equipos BACKUP no cuentan como alta.** Son equipos de respaldo: no son una venta y su valor de servicios viene en cero. Se descartan tanto en las altas como en las preofertas de Workflow. El detalle está en el README de la función.
+
+**Una venta tiene dos fechas.** La de radicación de la preoferta, en Workflow, y la de registro del alta en SAN. No son la misma: una venta radicada en octubre a la que le marcan el B800 en noviembre se registra como alta **con fecha de noviembre**. Es la causa más común de la pregunta «¿por qué aparece ahora si es de octubre?».
 
 ---
 
@@ -201,3 +215,5 @@ Desde el navegador no se ve bien: Supabase no deja que sus funciones se muestren
 | El dashboard muestra datos viejos | La pestaña **Actions** de este repositorio: ver si el robot corrió |
 | El dashboard no muestra las radicaciones | La API de Workflow, o la llave que está en el HTML |
 | El correo no llega | Que el proyecto de Supabase no esté pausado, y los secretos de la función |
+| La pantalla y el correo dan cifras distintas | Las reglas de conteo están escritas dos veces: revisar que las dos copias tengan la misma versión de la regla |
+| Un alta aparece en un mes que no corresponde | Las dos fechas de una venta: ver «Cosas que conviene saber antes de tocar» |
