@@ -1,0 +1,80 @@
+# =====================================================================
+#  Despliega la funcion del reporte en Supabase
+#  ---------------------------------------------------------------------
+#  Se dispara de dos formas:
+#    1. Sola, cuando se hace push a main y cambio algo dentro de
+#       supabase/functions/. Tocar el robot o la documentacion NO la
+#       dispara.
+#    2. A mano, desde la pestaña Actions con el boton "Run workflow".
+#
+#  Necesita estos secretos en el repositorio
+#  (Settings -> Secrets and variables -> Actions):
+#
+#    SUPABASE_ACCESS_TOKEN   token personal de Supabase
+#    SUPABASE_PROJECT_ID     scypmmaaatqsbtukuwwl
+#    REPORTE_API_KEY         opcional, solo para la prueba de abajo
+#
+#  OJO con --no-verify-jwt: la funcion hace su propia autenticacion con
+#  llave y tiene "Verify JWT" apagado. Sin esa bandera, cada despliegue
+#  lo volveria a encender y todos los que llaman recibirian 401.
+# =====================================================================
+
+name: Desplegar el reporte de Flash
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/functions/**'
+
+jobs:
+  desplegar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Traer el repositorio
+        uses: actions/checkout@v4
+
+      - name: Instalar la herramienta de Supabase
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Desplegar la funcion
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          supabase functions deploy reporte-flash-publico \
+            --project-ref "${{ secrets.SUPABASE_PROJECT_ID }}" \
+            --no-verify-jwt
+
+      # Comprueba que la funcion recien desplegada responda de verdad.
+      # Si devuelve algo distinto de 200, el flujo queda en rojo y te
+      # llega aviso: asi no te enteras el viernes de que el correo salio
+      # roto. Se salta sola si no configuraste REPORTE_API_KEY.
+      - name: Probar que responda
+        env:
+          LLAVE: ${{ secrets.REPORTE_API_KEY }}
+          PROYECTO: ${{ secrets.SUPABASE_PROJECT_ID }}
+        run: |
+          if [ -z "$LLAVE" ]; then
+            echo "No hay REPORTE_API_KEY configurada: me salto la prueba."
+            exit 0
+          fi
+          URL="https://${PROYECTO}.supabase.co/functions/v1/reporte-flash-publico?pais=GT"
+          echo "Probando $URL"
+          CODIGO=$(curl -s -o /tmp/respuesta.html -w "%{http_code}" \
+                        -H "x-api-key: ${LLAVE}" --max-time 60 "$URL")
+          echo "Respondio: $CODIGO"
+          if [ "$CODIGO" != "200" ]; then
+            echo "::error::La funcion respondio $CODIGO en vez de 200. Revisa el despliegue."
+            head -c 600 /tmp/respuesta.html
+            exit 1
+          fi
+          PESO=$(wc -c < /tmp/respuesta.html)
+          echo "Peso del reporte: $PESO bytes"
+          if [ "$PESO" -lt 5000 ]; then
+            echo "::error::El reporte vino demasiado corto ($PESO bytes). Algo salio mal."
+            exit 1
+          fi
+          echo "Todo bien: la funcion responde y devuelve el reporte."
