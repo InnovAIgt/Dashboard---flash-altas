@@ -13,6 +13,7 @@ Muestra las altas registradas por país y ejecutivo, y las solicitudes que sigue
 | `actualizar.js` | El robot. Le pide las altas a SAN y las guarda en `docs/datos.json` |
 | `.github/workflows/` | Hace correr al robot solo, cada cierto tiempo |
 | `actualizar-y-subir.bat` | Corre el robot a mano desde una computadora con Windows |
+| `ver-reporte.ps1` | Arma el reporte y lo abre en el navegador, para verlo sin esperar al correo |
 | `docs/datos.json` | Las altas ya guardadas. Es lo que leen el dashboard y el reporte |
 | `docs/index.html` | Copia antigua del dashboard. **Ya no se mantiene** (ver más abajo) |
 | `docs/.nojekyll` | Le dice a GitHub Pages que publique los archivos tal cual |
@@ -141,6 +142,109 @@ Aunque lo abras desde tu computadora, el dashboard lee el `datos.json` **publica
 
 **No lo abras con doble clic.** Si en la barra del navegador aparece `file:///C:/...`, el navegador trata la página como un archivo suelto sin dirección propia y bloquea las llamadas a las APIs. Tiene que entrar por `http://localhost:5500/`.
 
+## Las direcciones del reporte
+
+La función vive en Supabase y se llama con `GET`:
+
+```
+https://scypmmaaatqsbtukuwwl.supabase.co/functions/v1/reporte-flash-publico
+```
+
+| Parámetro | Obligatorio | Qué hace |
+|---|---|---|
+| `pais` | Sí | `GT` o `SV` |
+| `mes` | No | `AAAA-MM`, un mes completo |
+| `desde` y `hasta` | No | `AAAA-MM-DD`, un rango de fechas. Van los dos o ninguno |
+
+Sin `mes` ni `desde`/`hasta`, devuelve el **mes en curso**, hora de Guatemala. Si llegan los dos, manda el rango.
+
+Las direcciones completas, listas para copiar:
+
+**Mes en curso** — es lo que usa Activaciones para el envío diario:
+
+```
+https://scypmmaaatqsbtukuwwl.supabase.co/functions/v1/reporte-flash-publico?pais=GT
+https://scypmmaaatqsbtukuwwl.supabase.co/functions/v1/reporte-flash-publico?pais=SV
+```
+
+**Un mes completo:**
+
+```
+https://scypmmaaatqsbtukuwwl.supabase.co/functions/v1/reporte-flash-publico?pais=GT&mes=2026-10
+https://scypmmaaatqsbtukuwwl.supabase.co/functions/v1/reporte-flash-publico?pais=SV&mes=2026-10
+```
+
+**Un rango de fechas:**
+
+```
+https://scypmmaaatqsbtukuwwl.supabase.co/functions/v1/reporte-flash-publico?pais=GT&desde=2026-11-01&hasta=2026-11-08
+https://scypmmaaatqsbtukuwwl.supabase.co/functions/v1/reporte-flash-publico?pais=SV&desde=2026-11-01&hasta=2026-11-08
+```
+
+**Un solo día** — se repite la misma fecha en los dos:
+
+```
+https://scypmmaaatqsbtukuwwl.supabase.co/functions/v1/reporte-flash-publico?pais=GT&desde=2026-11-08&hasta=2026-11-08
+```
+
+**Un rango que cruza de año** — también vale:
+
+```
+https://scypmmaaatqsbtukuwwl.supabase.co/functions/v1/reporte-flash-publico?pais=GT&desde=2026-12-20&hasta=2027-01-10
+```
+
+Cómo se arman: la dirección base, un `?`, y después los parámetros separados por `&`. El primero siempre lleva `?`, los demás `&`.
+
+**Encabezado obligatorio:** `x-api-key: <la llave>`. También acepta `Authorization: Bearer <llave>` y, solo para probar en el navegador, `&clave=<llave>` en la misma dirección.
+
+**Respuestas:** `200` con el reporte · `400` si una fecha está mal escrita · `401` si falta la llave o no coincide · `502` si falló una fuente de datos.
+
+> Por dentro **solo existe el rango**. Pedir un mes es un atajo: `mes=2026-10` se traduce a «del 2026-10-01 al 2026-10-31». Por eso el mes y el rango nunca pueden dar números distintos.
+
+Hay datos desde enero de 2026; un rango anterior devuelve el reporte vacío.
+
+Las reglas de conteo (qué cuenta como alta, qué cuenta como en proceso, por qué se excluyen los BACKUP, cómo funciona el B800) están en el README de la función, sección **«Las reglas de conteo»**.
+
+## Cómo ver el reporte sin esperar al correo
+
+Para eso está `ver-reporte.ps1`. Pide el reporte, lo guarda como archivo y lo abre en el navegador, igual que lo vería quien recibe el correo.
+
+Desde la terminal, parada en esta carpeta:
+
+```powershell
+.\ver-reporte.ps1 GT                                  # el mes en curso
+.\ver-reporte.ps1 SV
+.\ver-reporte.ps1 GT -Mes 2026-10                     # un mes completo
+.\ver-reporte.ps1 GT -Desde 2026-11-01 -Hasta 2026-11-08   # un rango
+```
+
+**La llave no está escrita en el script.** La lee del `.env`, que no se sube a git. Tiene que haber una línea así:
+
+```
+REPORTE_API_KEY=la-llave-del-reporte
+```
+
+**Dónde quedan los archivos:** en una carpeta `vista-previa/` que está **al lado** de este repositorio, no adentro:
+
+```
+dashboard flash/
+   ├── flash-dashboard-pages/   ← este repositorio
+   └── vista-previa/            ← los reportes generados
+```
+
+Está afuera a propósito. Los reportes llevan nombres de clientes, códigos y montos, y este repositorio es público: si quedaran adentro, bastaría un `git add .` distraído para publicarlos. Al estar afuera, git ni los ve.
+
+Cada archivo lleva el país, el período y la hora en el nombre, así que se van acumulando y se pueden comparar entre sí.
+
+Si la primera vez la carpeta no existe, el script la crea.
+
+**Si la primera vez dice que no puede ejecutar scripts:** Windows los bloquea por defecto. Se habilita una sola vez, desde la misma terminal:
+
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
+Unblock-File .\ver-reporte.ps1
+```
+
 ## Cómo probar la función del reporte
 
 Con Postman: método `GET`, la dirección del reporte, y en **Headers** una fila con `x-api-key` y la llave. La pestaña **Preview** de la respuesta lo muestra dibujado.
@@ -155,7 +259,7 @@ Desde el navegador no se ve bien: Supabase no deja que sus funciones se muestren
 |---|---|---|
 | `FLASH_API_KEY` | El robot, para entrar a SAN | Secretos de GitHub, o `.env` local |
 | La de Workflow | El dashboard y la función del reporte | Dentro del HTML del dashboard y en los secretos de Supabase |
-| `REPORTE_API_KEY` | Quien llame a la función del reporte | Secretos de Supabase |
+| `REPORTE_API_KEY` | Quien llame a la función del reporte | Secretos de Supabase, y en el `.env` local para `ver-reporte.ps1` |
 
 **Ninguna llave va escrita en este repositorio.** El `.env` está excluido y `actualizar.js` las lee de las variables de entorno.
 
