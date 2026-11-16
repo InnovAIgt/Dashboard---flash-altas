@@ -98,13 +98,23 @@ El descarte se hace **al traer los datos**, antes de cualquier cálculo. Así es
 
 ## Qué cuenta como EN PROCESO
 
-Una preoferta de Workflow cuenta si cumple **las cuatro**:
+Una preoferta de Workflow cuenta si cumple **las cinco**:
 
 1. su **país** es el pedido, y
 2. su **estado** es `en_proceso`, y
 3. **no tiene el B800 marcado**, y
 4. **no es BACKUP**, y
 5. su **fecha de radicación** cae dentro del período consultado.
+
+### En qué unidad se cuenta
+
+El indicador «En proceso» **no cuenta solicitudes, cuenta anexos**: suma la columna `cantidad` de cada preoferta que pasó el filtro de arriba.
+
+Es la misma unidad de las altas — una alta es un anexo. Contar solicitudes mezclaba dos medidas distintas en la misma suma y dejaba «Radicadas» por debajo de lo real: una preoferta de 12 equipos pesaba lo mismo que una de 1.
+
+Ejemplo real de Guatemala, noviembre de 2026: 10 solicitudes abiertas que suman 72 anexos se muestran como **72**, y la tarjeta lo aclara debajo: «anexos en 10 solicitudes abiertas».
+
+La cuenta de solicitudes sigue existiendo, en la variable `nRad`, y se usa en dos lugares: el título de la tabla de radicaciones («10 actuales») y la gráfica de anexos por ejecutivo.
 
 ### El checklist B800
 
@@ -131,8 +141,16 @@ Pero tiene que ser el **valor completo**. Un valor como `BACKUP COMODATO` **no**
 ## Qué cuenta como RADICADAS
 
 ```
-Radicadas = Altas del período + En proceso del período
+Radicadas = altas del período + anexos en proceso del período
 ```
+
+Todo en anexos, que es lo que hace que la suma signifique algo: 17 + 72 = 89.
+
+### La gráfica de anexos por ejecutivo cuenta distinto, a propósito
+
+En esa gráfica el tramo ámbar de cada persona es **cuántas solicitudes** tiene abiertas, no cuántos anexos suman. Por eso su total no coincide con la tarjeta de «Radicadas», y por eso lleva una línea debajo que lo advierte.
+
+Se dejó así por pedido del área: ahí interesa ver cuántos trámites lleva cada ejecutivo, no el volumen. Si alguna vez se decide unificarlo, el cambio va en `radPorVendCnt`, que hoy cuenta y tendría que sumar `cantidad`.
 
 ## Qué pasa con las radicaciones de fuera del período
 
@@ -174,11 +192,12 @@ No son la misma. Una venta radicada en octubre, a la que le marcan el B800 un 6 
 
 ## Qué trae el reporte
 
-- **Tres indicadores:** altas, en proceso y radicadas.
+- **Tres indicadores:** altas, en proceso y radicadas. Los tres en anexos.
 - **Cuatro gráficas:** anexos por ejecutivo, unidades por ejecutivo, valor de servicios por ejecutivo, y el reparto entre nuevas y adiciones.
-- **Resumen por ejecutivo** con nuevas, adiciones, clientes, unidades, SIM y valor.
-- **Detalle de altas** agrupado por ejecutivo y por cliente.
+- **Resumen por ejecutivo** con nuevas, adiciones, clientes, unidades, SIM y valor. Cada ejecutivo va con su ficha (iniciales y nombre) para que las filas se distingan de un vistazo.
 - **Radicaciones en curso** con preoferta, fecha, cliente, tipo de negocio y cantidad.
+
+> **El detalle de altas una-fila-por-anexo se quitó** el 16 de noviembre de 2026. Repetía lo que ya decía el resumen de arriba y alargaba el correo sin agregar nada. Si hiciera falta volver a verlo, está en el historial de git.
 
 ## Lo que no incluye
 

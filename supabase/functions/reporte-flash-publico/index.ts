@@ -458,8 +458,17 @@ function armarHtml(opts: {
   const sims = altas.reduce((s, r) => s + r.cantSim, 0);
   const clientesDistintos = new Set(altas.map((r) => r.codCliente)).size;
   const hayRad = !radError;
+  /* Dos cuentas distintas, a proposito:
+       nRad          = cuantas SOLICITUDES siguen abiertas en Workflow
+       anexosProceso = cuantos ANEXOS suman esas solicitudes (su columna CANTIDAD)
+     El indicador "En proceso" muestra los ANEXOS, porque es lo comparable con
+     las altas: una alta es un anexo. Contar solicitudes mezclaba dos unidades
+     distintas en la misma suma y dejaba "Radicadas" por debajo de lo real.
+     La cuenta de solicitudes se sigue usando en la tabla de radicaciones y en
+     la grafica de anexos por ejecutivo. */
   const nRad = rads.length;
-  const radicadas = hayRad ? nAltas + nRad : null;
+  const anexosProceso = rads.reduce((s, r) => s + (r.cantidad ?? 0), 0);
+  const radicadas = hayRad ? nAltas + anexosProceso : null;
 
   /* --- agrupar por ejecutivo, guardando TODAS sus filas --- */
   const valorTotal = altas.reduce((t, r) => t + r.valor, 0);
@@ -518,7 +527,6 @@ function armarHtml(opts: {
       </div>`;
 
   const nombrePais = PAISES[pais] || pais;
-  const mesCorto = per.corta;
   /* Con un mes se lee bien «Radicadas en octubre»; con un rango, «en 1 al 15
      de octubre» sonaría mal, así que ahí se separa con un punto. */
   const enPer = per.esMes ? `en ${esc(per.corta)}` : `&middot; ${esc(per.corta)}`;
@@ -724,7 +732,8 @@ function armarHtml(opts: {
   const leyenda = `${cuadro("#15803d")} nuevas &nbsp;&nbsp;${cuadro("#1d4ed8")} adiciones${hayRad ? ` &nbsp;&nbsp;${cuadro("#b45309")} en proceso` : ""}`;
   const bloqueGraficas = (!nAltas && !nRad) ? "" : `
   ${tarjeta(`${encabezadoGrafica("anexos", "Anexos por ejecutivo", `Cada alta es un anexo. La barra es todo lo radicado por esa persona.<br>${leyenda}`)}
-      ${grafAnexos}`, 16)}
+      ${grafAnexos}
+      ${!hayRad || !nRad ? "" : `<p style="margin:10px 0 0;color:#64748b;font-size:10px;line-height:1.45">En esta gr&aacute;fica cada solicitud en proceso cuenta como <b>una</b>, no por sus anexos. Por eso su total no coincide con la tarjeta de <b>Radicadas</b>, que s&iacute; cuenta los anexos.</p>`}`, 16)}
 
   ${tarjeta(`${encabezadoGrafica("equipos", "Unidades por ejecutivo", `Equipos ya entregados, no anexos: un solo anexo puede llevar varios equipos. No incluye lo que sigue en proceso.<br>${cuadro("#15803d")} nuevas &nbsp;&nbsp;${cuadro("#1d4ed8")} adiciones`)}
       ${grafUnidades}`)}
@@ -742,8 +751,20 @@ function armarHtml(opts: {
 `;
 
   /* --- Tabla 1: resumen por ejecutivo (equivale a su hoja RESUMEN ALTAS) --- */
+  /* El nombre del ejecutivo va como ficha —circulito con iniciales + pastilla—
+     y no como texto suelto. Antes esa distincion la daban las bandas de la
+     tabla de detalle; al quitar esa tabla, la ficha es lo que mantiene a cada
+     persona identificable de un vistazo. */
+  const fichaEjec = (codigo: string) => {
+    const nombre = nomVend(codigo);
+    return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse"><tr>
+      <td width="28" valign="middle" style="width:28px;min-width:28px">${avatar(nombre)}</td>
+      <td valign="middle" style="padding-left:8px"><span style="display:inline-block;border-radius:999px;background:#28374f;color:#ffffff;padding:5px 12px;font-size:11px;font-weight:800;letter-spacing:.2px;white-space:nowrap">${esc(nombre)}</span></td>
+    </tr></table>`;
+  };
+
   const filasResumen = ejecutivos.map((e, i) => `<tr${i % 2 ? ' class="z"' : ""}>
-      <td ${TDb}>${esc(nomVend(e.vendedor))}</td>
+      <td ${TDb}>${fichaEjec(e.vendedor)}</td>
       <td ${TD}>${esc(e.vendedor)}</td>
       <td align="right" ${TD}>${fmt(e.nuevas)}</td>
       <td align="right" ${TD}>${fmt(e.adiciones)}</td>
@@ -754,64 +775,6 @@ function armarHtml(opts: {
       <td align="right" ${TD}>${esc(fmtMon(e.valor, pais))}</td>
       <td align="right" ${TD}>${nAltas ? Math.round(e.total / nAltas * 100) : 0}%</td>
     </tr>`).join("");
-
-  /* --- Tabla 2: detalle de altas, agrupando lo que se repite ---------------
-     Un cliente que compra 12 equipos iguales el mismo día genera 12 anexos: 12
-     filas idénticas salvo el número. Se juntan en una sola, con la cuenta, la
-     suma y los números de anexo listados, así no se pierde nada y se lee. */
-  interface Grupo {
-    anexos: string[]; fecha: string; codCliente: string; cliente: string;
-    tipoAlta: string; tecnologia: string;
-    cant: number; valor: number; meses: Set<number>;
-  }
-  const filasAltas = ejecutivos.map((e) => {
-    const cab = `<tr><td colspan="9" class="g ga" bgcolor="#4a5d80" style="background:#4a5d80;padding:11px 12px">
-      <span class="gn" style="display:inline-block;border-radius:999px;background:#28374f;color:#ffffff;padding:7px 14px;font-size:12px;font-weight:800;letter-spacing:.2px">&#128100; ${esc(nomVend(e.vendedor))} &middot; ${esc(e.vendedor)}</span>
-      <span class="gs" style="color:#cdd9ee;font-size:11px;font-weight:600;padding-left:10px">${plural(e.total, "anexo", "anexos")} &middot; ${plural(e.clientes.size, "cliente", "clientes")} &middot; ${nAltas ? Math.round(e.total / nAltas * 100) : 0}% del total</span>
-    </td></tr>`;
-
-    const grupos = new Map<string, Grupo>();
-    for (const r of e.filas) {
-      const k = [r.codCliente, r.fecha, r.tipoAlta, r.tecnologia].join("|");
-      let g = grupos.get(k);
-      if (!g) {
-        g = { anexos: [], fecha: r.fecha, codCliente: r.codCliente, cliente: r.cliente,
-              tipoAlta: r.tipoAlta, tecnologia: r.tecnologia,
-              cant: 0, valor: 0, meses: new Set<number>() };
-        grupos.set(k, g);
-      }
-      if (r.anexo) g.anexos.push(r.anexo);
-      g.cant += r.cantEquipo; g.valor += r.valor;
-      if (r.meses) g.meses.add(r.meses);
-    }
-    // Primero todas las NUEVAS y después las ADICIONES, y dentro de cada bloque
-    // por cliente y fecha. Así la tabla se lee por tipo y no salteada.
-    const rango = (t: string) => t === "NUEVA" ? 0 : t === "ADICION" ? 1 : 2;
-    const lista = [...grupos.values()].sort((a, b) =>
-      rango(a.tipoAlta) !== rango(b.tipoAlta) ? rango(a.tipoAlta) - rango(b.tipoAlta)
-      : a.cliente !== b.cliente ? a.cliente.localeCompare(b.cliente)
-      : a.fecha.localeCompare(b.fecha));
-
-    const chico = 'style="color:#94a3b8;font-size:10px;margin-top:2px"';
-    const cuerpo = lista.map((g, i) => {
-      const n = g.anexos.length;
-      // Siempre la cantidad, nunca el número: mostrar a veces una cosa y a
-      // veces otra confunde. Quien necesite los números los busca en SAN.
-      const anexoCel = plural(n, "anexo", "anexos");
-      return `<tr${i % 2 ? ' class="z"' : ""}>
-      <td ${TDb} style="white-space:nowrap">${anexoCel}</td>
-      <td ${TD}>${fechaCorta(g.fecha)}</td>
-      <td ${TD}>${esc(g.codCliente || "—")}</td>
-      <td ${TD}>${esc(g.cliente || "—")}</td>
-      <td ${TD}>${g.tipoAlta === "NUEVA" ? pill("pn", "NUEVA") : pill("pa", "ADICIÓN")}</td>
-      <td ${TD}>${esc(g.tecnologia || "—")}</td>
-      <td align="right" ${TD}>${fmt(g.cant)}</td>
-      <td align="right" ${TD}>${esc(fmtMon(g.valor, pais))}</td>
-      <td align="right" ${TD}>${g.meses.size === 0 ? "—" : g.meses.size === 1 ? fmt([...g.meses][0]) : "varios"}</td>
-    </tr>`;
-    }).join("");
-    return cab + cuerpo;
-  }).join("");
 
   /* --- filas de la tabla de radicaciones --- */
   const filasRad = radGrupos.map(([v, lista]) => {
@@ -920,12 +883,12 @@ function armarHtml(opts: {
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse"><tr>
         <td valign="middle">
           <div style="color:#1d4ed8;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.55px">Radicadas ${enPer}</div>
-          <div style="margin-top:5px;color:#475569;font-size:11px;line-height:1.4">${plural(nAltas, "alta registrada", "altas registradas")}${hayRad ? ` + ${plural(nRad, "radicación en curso", "radicaciones en curso")} en Workflow${radsOtros.length ? ` &middot; no incluye ${fmt(radsOtros.length)} de fuera del período` : ""}` : ""}</div>
+          <div style="margin-top:5px;color:#475569;font-size:11px;line-height:1.4">${plural(nAltas, "alta registrada", "altas registradas")}${hayRad ? ` + ${plural(anexosProceso, "anexo en curso", "anexos en curso")} en Workflow (${plural(nRad, "solicitud", "solicitudes")})${radsOtros.length ? ` &middot; no incluye ${fmt(radsOtros.length)} de fuera del período` : ""}` : ""}</div>
           <div style="margin-top:3px;color:#64748b;font-size:10px">Todo lo que entró, sin importar si ya se resolvió o sigue en trámite.</div>
         </td>
         <td align="right" valign="middle" width="125" style="width:125px">
           <div style="color:#1d4ed8;font-size:36px;line-height:1;font-weight:900">${radicadas == null ? "—" : fmt(radicadas)}</div>
-          <div style="margin-top:4px;color:#64748b;font-size:9px">${hayRad ? `${fmt(nAltas)} + ${fmt(nRad)} = ${fmt(radicadas!)}` : "sin radicaciones"}</div>
+          <div style="margin-top:4px;color:#64748b;font-size:9px">${hayRad ? `${fmt(nAltas)} + ${fmt(anexosProceso)} = ${fmt(radicadas!)}` : "sin radicaciones"}</div>
         </td>
       </tr></table>
     </td>
@@ -933,7 +896,7 @@ function armarHtml(opts: {
 
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;margin-bottom:16px"><tr>
     <td style="border:1px solid #dbeafe;background:#eff6ff;border-radius:8px;padding:11px 13px">
-      <p style="margin:0;color:#1e40af;font-size:11px;line-height:1.55"><strong>Cómo leer el reporte:</strong> <strong>altas</strong> son las que ya quedaron registradas en el período consultado, separadas en nuevas (cliente que no teníamos) y adiciones (lo que se le suma a un cliente existente); <strong>en proceso</strong> son las solicitudes radicadas dentro del mismo período que siguen abiertas en Workflow y todavía no quedaron registradas como alta en SAN, e incluyen ventas nuevas, adiciones y renovaciones; <strong>radicadas</strong> es la suma de las dos, es decir todo lo que entró en el período.</p>
+      <p style="margin:0;color:#1e40af;font-size:11px;line-height:1.55"><strong>Cómo leer el reporte:</strong> <strong>altas</strong> son las que ya quedaron registradas en el período consultado, separadas en nuevas (cliente que no teníamos) y adiciones (lo que se le suma a un cliente existente); <strong>en proceso</strong> son los anexos de las solicitudes radicadas dentro del mismo período que siguen abiertas en Workflow y todavía no quedaron registradas como alta en SAN — se cuentan por anexo, igual que las altas, e incluyen ventas nuevas, adiciones y renovaciones; <strong>radicadas</strong> es la suma de las dos, es decir todo lo que entró en el período, medido en anexos.</p>
     </td>
   </tr></table>
 
@@ -947,8 +910,8 @@ function armarHtml(opts: {
     <td width="33%" valign="top" style="padding:0 4px 8px">
       <div style="min-height:70px;border:1px solid #fef3c7;border-left:4px solid #b45309;background:#fef3c7;border-radius:8px;padding:11px">
         <div style="color:#b45309;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.4px">En proceso</div>
-        <div style="margin-top:4px;color:#0f172a;font-size:23px;line-height:1.15;font-weight:800">${hayRad ? fmt(nRad) : "—"}</div>
-        <div style="margin-top:4px;color:#64748b;font-size:10px">${hayRad ? (radsOtros.length ? `en curso en Workflow<br><b style="color:#b45309">+ ${fmt(radsOtros.length)} de fuera, sin sumar</b>` : "en curso en Workflow &middot; al día de hoy") : esc(radError)}</div>
+        <div style="margin-top:4px;color:#0f172a;font-size:23px;line-height:1.15;font-weight:800">${hayRad ? fmt(anexosProceso) : "—"}</div>
+        <div style="margin-top:4px;color:#64748b;font-size:10px">${hayRad ? (radsOtros.length ? `anexos en ${plural(nRad, "solicitud abierta", "solicitudes abiertas")}<br><b style="color:#b45309">+ ${fmt(radsOtros.length)} de fuera, sin sumar</b>` : `anexos en ${plural(nRad, "solicitud abierta", "solicitudes abiertas")} &middot; al día de hoy`) : esc(radError)}</div>
       </div></td>
     <td width="33%" valign="top" style="padding:0 0 8px 4px">
       <div style="min-height:70px;border:1px solid #dcfce7;border-left:4px solid #15803d;background:#dcfce7;border-radius:8px;padding:11px">
@@ -1003,27 +966,6 @@ function armarHtml(opts: {
               <td align="right" ${TOT}>${fmt(sims)}</td>
               <td align="right" ${TOT}>${esc(fmtMon(valorTotal, pais))}</td>
               <td align="right" ${TOT}>100%</td></tr>
-        </tbody></table>
-
-      <h2 style="margin:0;color:#0f172a;font-size:15px">Detalle de altas &middot; una fila por anexo</h2>
-      <p style="margin:5px 0 12px;color:#64748b;font-size:11px;line-height:1.45">Los ${fmt(nAltas)} anexos del período, agrupados por ejecutivo y por cliente. Cuando varios anexos del mismo cliente comparten fecha, equipo y precio, se muestran en una sola fila con sus números listados y los montos sumados.</p>
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;border:1px solid #cbd5e1">
-        <thead><tr>
-          <th align="left" ${TH}>ANEXO</th>
-          <th align="left" ${TH}>FECHA</th>
-          <th align="left" ${TH}>CÓD. CLIENTE</th>
-          <th align="left" class="h" style="min-width:300px">CLIENTE</th>
-          <th align="left" ${TH}>TIPO ALTA</th>
-          <th align="left" ${TH}>TECNOLOGÍA</th>
-          <th align="right" ${TH}>CANT.</th>
-          <th align="right" ${TH}>VALOR</th>
-          <th align="right" ${TH}>MESES</th>
-        </tr></thead>
-        <tbody>${filasAltas || `<tr><td colspan="9" style="padding:14px;color:#64748b;font-size:11px">No hay altas registradas en ${esc(nombrePais)} ${esc(per.frase)}.</td></tr>`}
-          <tr><td colspan="6" ${TOT}>TOTAL ${esc(nombrePais.toUpperCase())} &middot; ${esc(mesCorto)}</td>
-              <td align="right" ${TOT}>${fmt(unidades)}</td>
-              <td align="right" ${TOT}>${esc(fmtMon(valorTotal, pais))}</td>
-              <td style="padding:9px 8px;background:#1e293b;color:#cbd5e1;font-size:11px">${fmt(nAltas)}</td></tr>
         </tbody></table>
     </td>
   </tr></table>
