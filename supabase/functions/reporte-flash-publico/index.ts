@@ -309,6 +309,33 @@ const esBackup = (r: Alta) => diceBackup(r.tipoEquipo);
    dos a la vez, asi que basta con que uno de ellos lo diga. */
 const esBackupRad = (r: Rad) => diceBackup(r.negocio) || diceBackup(r.contratacion);
 
+/* =====================================================================
+   RENOVACIONES  —  NO CUENTAN COMO RADICACION EN PROCESO
+   ---------------------------------------------------------------------
+   En una renovacion no entra ningun equipo nuevo: se renueva el contrato
+   de los que el cliente ya tiene. Contarlas inflaba "en proceso" con
+   unidades que ya se habian contado antes, en el periodo en que se
+   vendieron, asi que la misma unidad aparecia dos veces.
+
+   Las altas nunca las incluyeron —la API de Flash solo devuelve NUEVA y
+   ADICION—, asi que este filtro solo toca el lado de Workflow y deja el
+   reporte con una sola lectura: lo que entra nuevo.
+
+   Se descarta al TRAER los datos, igual que BACKUP, para que quede fuera
+   de todo a la vez: el indicador, la tabla y la grafica.
+
+   La palabra puede venir en negocio o en tipoContratacion. Basta con que
+   uno de los dos lo diga, y se compara ignorando acentos, mayusculas,
+   espacios y signos: "RENOVACION", "Renovación" y "renovacion" son lo
+   mismo. Tiene que ser el valor completo: "RENOVACION Y ADICION" no se
+   descarta, porque ahi si entran equipos.
+   ===================================================================== */
+const diceRenovacion = (v: unknown) =>
+  String(v ?? "").toUpperCase().normalize("NFD").replace(/[^A-Z]/g, "") === "RENOVACION";
+
+const esRenovacionRad = (r: Rad) =>
+  diceRenovacion(r.negocio) || diceRenovacion(r.contratacion);
+
 /* ---------- traer los datos ---------- */
 async function traerAltas(): Promise<{ filas: Alta[]; actualizado: string }> {
   const res = await fetch(ALTAS_URL + "?_=" + Date.now(), { cache: "no-store" });
@@ -343,7 +370,7 @@ async function traerRadicaciones(): Promise<{ data: Rad[]; error: string }> {
     const data = lista
       .filter((r: any) => r && typeof r === "object" && String(r.estado || "").trim().toLowerCase() === "en_proceso")
       .map((r: any) => normalizarRad(r, ahora))
-      .filter((r: Rad) => !esBackupRad(r));
+      .filter((r: Rad) => !esBackupRad(r) && !esRenovacionRad(r));
     return { data, error: "" };
   } catch (_e) {
     return { data: [], error: "sin conexión con la API de preofertas" };
@@ -896,7 +923,7 @@ function armarHtml(opts: {
 
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;margin-bottom:16px"><tr>
     <td style="border:1px solid #dbeafe;background:#eff6ff;border-radius:8px;padding:11px 13px">
-      <p style="margin:0;color:#1e40af;font-size:11px;line-height:1.55"><strong>Cómo leer el reporte:</strong> <strong>altas</strong> son las que ya quedaron registradas en el período consultado, separadas en nuevas (cliente que no teníamos) y adiciones (lo que se le suma a un cliente existente); <strong>en proceso</strong> son los anexos de las solicitudes radicadas dentro del mismo período que siguen abiertas en Workflow y todavía no quedaron registradas como alta en SAN — se cuentan por anexo, igual que las altas, e incluyen ventas nuevas, adiciones y renovaciones; <strong>radicadas</strong> es la suma de las dos, es decir todo lo que entró en el período, medido en anexos.</p>
+      <p style="margin:0;color:#1e40af;font-size:11px;line-height:1.55"><strong>Cómo leer el reporte:</strong> <strong>altas</strong> son las que ya quedaron registradas en el período consultado, separadas en nuevas (cliente que no teníamos) y adiciones (lo que se le suma a un cliente existente); <strong>en proceso</strong> son los anexos de las solicitudes radicadas dentro del mismo período que siguen abiertas en Workflow y todavía no quedaron registradas como alta en SAN — se cuentan por anexo, igual que las altas, y solo entran ventas nuevas y adiciones, porque en una renovación no ingresan equipos nuevos; <strong>radicadas</strong> es la suma de las dos, es decir todo lo que entró en el período, medido en anexos.</p>
     </td>
   </tr></table>
 
@@ -974,7 +1001,7 @@ function armarHtml(opts: {
     <td style="border:1px solid #e2e8f0;border-radius:10px;padding:14px">
       <div style="margin:0 0 9px"><span style="display:inline-block;padding:6px 10px;border:1px solid #f59e0b;border-radius:999px;background:#fef3c7;color:#b45309;font-size:10px;font-weight:900;letter-spacing:.55px;text-transform:uppercase">En proceso</span></div>
       <h2 style="margin:0;color:#0f172a;font-size:15px">Detalle de radicaciones en curso${hayRad ? ` &middot; ${fmt(nRad)} ${nRad === 1 ? "actual" : "actuales"}` : ""}</h2>
-      <p style="margin:5px 0 12px;color:#64748b;font-size:11px;line-height:1.45">Solicitudes de ${esc(nombrePais)} radicadas ${esc(per.frase)} que siguen abiertas en Workflow y todavía no quedaron registradas como alta, agrupadas por ejecutivo.</p>
+      <p style="margin:5px 0 12px;color:#64748b;font-size:11px;line-height:1.45">Solicitudes de ${esc(nombrePais)} radicadas ${esc(per.frase)} que siguen abiertas en Workflow y todavía no quedaron registradas como alta, agrupadas por ejecutivo. Solo ventas nuevas y adiciones: las renovaciones no se listan porque no ingresan equipos nuevos.</p>
       ${bloqueRad}
       ${avisoOtros}
     </td>

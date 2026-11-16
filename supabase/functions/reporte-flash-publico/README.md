@@ -98,13 +98,24 @@ El descarte se hace **al traer los datos**, antes de cualquier cálculo. Así es
 
 ## Qué cuenta como EN PROCESO
 
-Una preoferta de Workflow cuenta si cumple **las cinco**:
+Una preoferta de Workflow cuenta si cumple **las seis**:
 
 1. su **país** es el pedido, y
 2. su **estado** es `en_proceso`, y
 3. **no tiene el B800 marcado**, y
 4. **no es BACKUP**, y
-5. su **fecha de radicación** cae dentro del período consultado.
+5. **no es una RENOVACIÓN**, y
+6. su **fecha de radicación** cae dentro del período consultado.
+
+### Por qué se excluyen las renovaciones
+
+En una renovación no entra ningún equipo nuevo: se renueva el contrato de los que el cliente ya tiene. Contarlas inflaba «en proceso» con unidades que ya se habían contado antes, en el período en que se vendieron — la misma unidad aparecía dos veces.
+
+Las altas nunca las incluyeron, porque la API de Flash solo devuelve `NUEVA` y `ADICION`. Así que este filtro solo toca el lado de Workflow y deja el reporte con una sola lectura: **lo que entra nuevo**.
+
+Las renovaciones **no se listan tampoco en la tabla** de radicaciones en curso. Si alguna vez hace falta verlas, se consultan directamente en Workflow.
+
+La palabra puede venir en `negocio` o en `tipoContratacion`; basta con que uno de los dos lo diga. Se compara ignorando acentos, mayúsculas, espacios y signos, y tiene que ser el valor completo: `RENOVACION Y ADICION` **no** se descarta, porque ahí sí entran equipos.
 
 ### En qué unidad se cuenta
 
