@@ -566,8 +566,12 @@ function armarHtml(opts: {
      pintada con bgcolor la dibuja hasta Outlook, pesa unos bytes y no depende
      de que el destinatario permita nada.
      Cada barra es lo RADICADO por ese ejecutivo: nuevas + adiciones + en proceso. */
+  /* Se suman los ANEXOS de cada solicitud, no las solicitudes. Es la misma
+     unidad que las altas y que la tarjeta "En proceso", y por eso el total de
+     esta grafica da exactamente lo mismo que la tarjeta "Radicadas". Contar
+     solicitudes dejaba la grafica midiendo una cosa y las tarjetas otra. */
   const radPorVendCnt = new Map<string, number>();
-  for (const r of rads) radPorVendCnt.set(r.vendedor, (radPorVendCnt.get(r.vendedor) || 0) + 1);
+  for (const r of rads) radPorVendCnt.set(r.vendedor, (radPorVendCnt.get(r.vendedor) || 0) + (r.cantidad ?? 0));
 
   // Un ejecutivo puede tener radicaciones en proceso y ninguna alta este mes:
   // también tiene que aparecer, o se pierde de vista lo que tiene pendiente.
@@ -677,6 +681,7 @@ function armarHtml(opts: {
     total: e.radicadas,
     detalle: [e.nuevas ? `${fmt(e.nuevas)} nuevas` : "", e.adiciones ? `${fmt(e.adiciones)} adiciones` : "",
               e.proceso ? `${fmt(e.proceso)} en proceso` : ""].filter(Boolean).join(" &middot; "),
+    // (el tramo ambar ya viene en anexos, igual que los otros dos)
   })));
 
   /* Columnas verticales: para que esta gráfica no se confunda con la de arriba.
@@ -756,16 +761,19 @@ function armarHtml(opts: {
 
   const pNuevasTot = nAltas ? Math.round(nuevas / nAltas * 100) : 0;
   const cuadro = (c: string) => `<span style="display:inline-block;width:9px;height:9px;background:${c};border-radius:2px"></span>`;
-  const leyenda = `${cuadro("#15803d")} nuevas &nbsp;&nbsp;${cuadro("#1d4ed8")} adiciones${hayRad ? ` &nbsp;&nbsp;${cuadro("#b45309")} en proceso` : ""}`;
+  /* "altas nuevas" y "altas adiciones", no "nuevas" y "adiciones" a secas: en
+     esta grafica conviven con el ambar de "en proceso", y sin la palabra altas
+     no se ve que los dos primeros colores son lo YA registrado. */
+  const leyenda = `${cuadro("#15803d")} altas nuevas &nbsp;&nbsp;${cuadro("#1d4ed8")} altas adiciones${hayRad ? ` &nbsp;&nbsp;${cuadro("#b45309")} en proceso` : ""}`;
   const bloqueGraficas = (!nAltas && !nRad) ? "" : `
   ${tarjeta(`${encabezadoGrafica("anexos", "Anexos por ejecutivo", `Cada alta es un anexo. La barra es todo lo radicado por esa persona.<br>${leyenda}`)}
       ${grafAnexos}
-      ${!hayRad || !nRad ? "" : `<p style="margin:10px 0 0;color:#64748b;font-size:10px;line-height:1.45">En esta gr&aacute;fica cada solicitud en proceso cuenta como <b>una</b>, no por sus anexos. Por eso su total no coincide con la tarjeta de <b>Radicadas</b>, que s&iacute; cuenta los anexos.</p>`}`, 16)}
+      ${!hayRad || !nRad ? "" : `<p style="margin:10px 0 0;color:#64748b;font-size:10px;line-height:1.45">Todo en anexos: el tramo &aacute;mbar son los anexos de las solicitudes abiertas, no la cantidad de solicitudes. Por eso el total de esta gr&aacute;fica coincide con la tarjeta de <b>Radicadas</b>.</p>`}`, 16)}
 
-  ${tarjeta(`${encabezadoGrafica("equipos", "Unidades por ejecutivo", `Equipos ya entregados, no anexos: un solo anexo puede llevar varios equipos. No incluye lo que sigue en proceso.<br>${cuadro("#15803d")} nuevas &nbsp;&nbsp;${cuadro("#1d4ed8")} adiciones`)}
+  ${tarjeta(`${encabezadoGrafica("equipos", "Unidades por ejecutivo", `Equipos ya entregados, no anexos: un solo anexo puede llevar varios equipos. No incluye lo que sigue en proceso.<br>${cuadro("#15803d")} altas nuevas &nbsp;&nbsp;${cuadro("#1d4ed8")} altas adiciones`)}
       ${grafUnidades}`)}
 
-  ${!grafValor ? "" : tarjeta(`${encabezadoGrafica(MONEDA_NOMBRE[pais] || "valor", "Valor de servicios por ejecutivo", `Valor total de los servicios de las altas registradas. Los montos van redondeados; el detalle con centavos está en la tabla de resumen.<br>${cuadro("#15803d")} nuevas &nbsp;&nbsp;${cuadro("#1d4ed8")} adiciones`)}
+  ${!grafValor ? "" : tarjeta(`${encabezadoGrafica(MONEDA_NOMBRE[pais] || "valor", "Valor de servicios por ejecutivo", `Valor total de los servicios de las altas registradas. Los montos van redondeados; el detalle con centavos está en la tabla de resumen.<br>${cuadro("#15803d")} altas nuevas &nbsp;&nbsp;${cuadro("#1d4ed8")} altas adiciones`)}
       ${grafValor}`)}
 
   ${!nAltas ? "" : tarjeta(`${encabezadoGrafica("reparto", "Nuevas frente a adiciones", "Qu&eacute; parte de las altas vino de clientes que no ten&iacute;amos y qu&eacute; parte se le sum&oacute; a clientes que ya eran nuestros.")}

@@ -157,11 +157,11 @@ Radicadas = altas del período + anexos en proceso del período
 
 Todo en anexos, que es lo que hace que la suma signifique algo: 17 + 72 = 89.
 
-### La gráfica de anexos por ejecutivo cuenta distinto, a propósito
+### Todo el reporte mide en anexos
 
-En esa gráfica el tramo ámbar de cada persona es **cuántas solicitudes** tiene abiertas, no cuántos anexos suman. Por eso su total no coincide con la tarjeta de «Radicadas», y por eso lleva una línea debajo que lo advierte.
+La gráfica de anexos por ejecutivo también: el tramo ámbar de cada persona son **los anexos** de sus solicitudes abiertas, no cuántas solicitudes tiene. Por eso el total de esa gráfica da exactamente lo mismo que la tarjeta de «Radicadas».
 
-Se dejó así por pedido del área: ahí interesa ver cuántos trámites lleva cada ejecutivo, no el volumen. Si alguna vez se decide unificarlo, el cambio va en `radPorVendCnt`, que hoy cuenta y tendría que sumar `cantidad`.
+La cuenta de solicitudes (`nRad`) queda solo para el título de la tabla de radicaciones («7 actuales») y para el texto de la tarjeta («anexos en 7 solicitudes abiertas»). En ningún indicador ni gráfica se mezclan las dos unidades.
 
 ## Qué pasa con las radicaciones de fuera del período
 
