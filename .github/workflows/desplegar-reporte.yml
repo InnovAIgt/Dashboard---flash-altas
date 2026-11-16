@@ -46,7 +46,8 @@ jobs:
         run: |
           supabase functions deploy reporte-flash-publico \
             --project-ref "${{ secrets.SUPABASE_PROJECT_ID }}" \
-            --no-verify-jwt
+            --no-verify-jwt \
+            --yes
 
       # Comprueba que la funcion recien desplegada responda de verdad.
       # Si devuelve algo distinto de 200, el flujo queda en rojo y te
